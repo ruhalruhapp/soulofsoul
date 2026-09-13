@@ -1,13 +1,18 @@
 // soulofsoul — Prisma schema for the enterprise mental health platform.
 // Per §8.1: three separate data domains (Tier 3 chat, Tier 4 clinical, Pillar 2 research)
 // are modeled as separate tables with distinct access patterns.
+//
+// Database: SQLite for dev, PostgreSQL for production.
+// The DATABASE_URL env var determines which provider is used.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  // SQLite for development; Postgres for production.
+  // Set DATABASE_URL="postgresql://user:pass@host:5432/soulofsoul" in production.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

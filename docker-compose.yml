@@ -1,5 +1,11 @@
-# soulofsoul — local development with all services
-# Usage: docker-compose up
+# soulofsoul — production deployment
+# Usage: docker-compose up -d
+#
+# Services:
+#   - web          (Next.js app, port 3000)
+#   - crisis-relay (WebSocket mini-service, port 3030)
+#   - postgres     (HIPAA-eligible database)
+#   - redis        (optional — for session caching and rate limiting)
 
 services:
   # Main Next.js application
@@ -10,19 +16,23 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=file:/app/db/soulofsoul.db
-      - NEXTAUTH_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://soulofsoul:${POSTGRES_PASSWORD:-soulofsoul_dev}@postgres:5432/soulofsoul
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dev-secret-change-in-production}
       - NODE_ENV=production
-    volumes:
-      - soulofsoul-db:/app/db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
-      timeout: 3s
+      timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
   # Crisis-relay WebSocket mini-service
   crisis-relay:
@@ -34,6 +44,42 @@ services:
     environment:
       - NODE_ENV=production
 
+  # PostgreSQL — HIPAA-eligible when deployed on AWS RDS / GCP Cloud SQL / Azure
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=soulofsoul
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-soulofsoul_dev}
+      - POSTGRES_DB=soulofsoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - soulofsoul-pg:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soulofsoul -d soulofsoul"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Production: add TLS, pgcrypto extension for field-level encryption
+    # command: >
+    #   postgres
+    #   -c ssl=on
+    #   -c ssl_cert_file=/var/lib/postgresql/server.crt
+    #   -c ssl_key_file=/var/lib/postgresql/server.key
+
+  # Redis — for session caching, rate limiting, and WebSocket adapter
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - soulofsoul-redis:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
 volumes:
-  soulofsoul-db:
+  soulofsoul-pg:
+    driver: local
+  soulofsoul-redis:
     driver: local

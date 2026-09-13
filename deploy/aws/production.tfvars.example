@@ -1,0 +1,13 @@
+# soulofsoul — production.tfvars
+# Copy to production.tfvars and fill in real values.
+# NEVER commit this file with real secrets — use .gitignore or pass via -var flags.
+
+aws_region       = "us-east-1"
+environment      = "production"
+domain_name      = "soulofsoul.com"
+certificate_arn  = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"
+
+# These should be passed via -var or environment variables, NOT committed:
+# database_password = "..."  → use: -var database_password="$(aws secretsmanager ...)"
+# nextauth_secret   = "..."  → use: -var nextauth_secret="$(openssl rand -base64 32)"
+# zai_api_key       = "..."  → use: -var zai_api_key="..."
