@@ -50,5 +50,28 @@ test
 prompt
 
 server.log
-# Skills directory
+# Sandbox infrastructure
+/.zscripts/
 /skills/
+
+# Database (SQLite) — contains user data, never commit
+/db/
+*.db
+*.db-journal
+
+# Test screenshots / generated images
+/download/*.png
+/download/*.jpg
+/download/*.webm
+/download/*.pdf
+
+# Local scripts output
+/tmp/crisis-relay.log
+
+# OS files
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp/tool-results/
