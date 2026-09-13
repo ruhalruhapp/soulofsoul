@@ -11,10 +11,18 @@ export interface CrisisResult {
   latencyMs: number;
 }
 
-// High-acuity risk classes per §5.1
+// High-acuity risk classes per §5.1.
+// Patterns are intentionally narrow to minimize false positives while catching
+// genuine crisis language. Tested against /tests/crisis.test.ts.
 const HIGH_ACUITY_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
+  // Explicit suicidal intent
   {
-    pattern: /\b(kill|killing|killed|end)\s+(my|myself|me)\b/i,
+    pattern: /\b(kill|killing|killed)\s+(my|myself|me)\b/i,
+    reason: "Suicidal ideation",
+  },
+  {
+    // "end my life" specifically — NOT "end my subscription" or "end my workout"
+    pattern: /\bend\s+my\s+(life|suffering|pain)\b/i,
     reason: "Suicidal ideation",
   },
   {
@@ -26,7 +34,20 @@ const HIGH_ACUITY_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     reason: "Self-harm",
   },
   {
-    pattern: /\b(want to (die|not (be|exist) anymore|disappear))\b/i,
+    // "want to die" — but NOT "want to disappear into a good book"
+    pattern: /\bwant to\s+(die|not (be|exist)\s+anymore)\b/i,
+    reason: "Suicidal ideation",
+  },
+  {
+    // "not want to be alive anymore" — covers "I don't want to be alive anymore"
+    pattern: /\b(not|don[''t]+|do\s+not)\s+want\s+to\s+(be\s+alive|exist|live)\b/i,
+    reason: "Suicidal ideation",
+  },
+  {
+    // Bare "want to disappear" with no following word — only flag if sentence ends
+    // or is followed by crisis context. Match "want to disappear" at end of utterance
+    // or followed by period. Avoids "want to disappear into/under/behind" etc.
+    pattern: /\bwant to disappear\b(?!\s+(?:into|under|behind|in|inside))\b/i,
     reason: "Suicidal ideation",
   },
   {
@@ -42,20 +63,27 @@ const HIGH_ACUITY_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     reason: "Suicidal ideation",
   },
   {
-    pattern: /\b(plan|planning) to (kill|end|die)\b/i,
+    // "planning to kill/end/die" — but NOT "planning to end my workout"
+    // Require "kill", "die", "end my life/suffering/pain", or "end it" in plan context
+    pattern: /\b(plan|planning)\s+to\s+(kill|die|end\s+my\s+(life|suffering|pain)|end\s+it)\b/i,
     reason: "Acute suicide plan",
   },
 ];
 
 // Minors detection (§5.6) — gentle, conservative. False positives route to human review
 // rather than auto-off-boarding. Production would use a dedicated classifier with stricter thresholds.
+//
+// Strategy: extract a stated age from common phrasings, then flag if age < 18.
+// Also flag explicit self-identification as a minor (kid/child/teen/minor).
 const MINORS_PATTERNS: Array<{ pattern: RegExp; evidence: string }> = [
   {
-    pattern: /\bI[''m]+\s+(?:only\s+)?(\d{1,2})\b.*(?:year|yr|yo|old)/i,
+    // "I'm 14 years old", "I am 16 years old", "I'm 13yo", "I'm only 12"
+    // Captures the age in group 1.
+    pattern: /\bI(?:[''m]+|\s+am)\s+(?:only\s+)?(\d{1,2})\s*(?:years?\s*(?:old|yo)|yo|years?\s+old)?\b/i,
     evidence: "Stated age below 18",
   },
   {
-    pattern: /\bI[''m]+\s+(?:a\s+)?(?:kid|child|teen(?:ager)?|minor)\b/i,
+    pattern: /\bI(?:[''m]+|\s+am)\s+(?:a\s+)?(?:kid|child|teen(?:ager)?|minor)\b/i,
     evidence: "Self-identified as minor",
   },
   {
@@ -63,7 +91,7 @@ const MINORS_PATTERNS: Array<{ pattern: RegExp; evidence: string }> = [
     evidence: "Stated school enrollment",
   },
   {
-    pattern: /\bI[''m]+\s+not\s+(?:18|eighteen|an\s+adult)\b/i,
+    pattern: /\bI(?:[''m]+|\s+am)\s+not\s+(?:18|eighteen|an\s+adult)\b/i,
     evidence: "Explicit denial of adult status",
   },
 ];
@@ -78,12 +106,17 @@ export function detectMinors(text: string): MinorsResult {
   for (const { pattern, evidence } of MINORS_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
-      // Extract the stated age if present
-      const ageMatch = text.match(/\b(\d{1,2})\b/);
-      const statedAge = ageMatch ? parseInt(ageMatch[1], 10) : null;
-      if (statedAge !== null && statedAge > 0 && statedAge < 18) {
-        return { flagged: true, evidence: `Stated age: ${statedAge}`, confidence: 0.92 };
+      // Try to extract the stated age from the captured group
+      const statedAgeStr = match[1];
+      if (statedAgeStr) {
+        const statedAge = parseInt(statedAgeStr, 10);
+        if (statedAge > 0 && statedAge < 18) {
+          return { flagged: true, evidence: `Stated age: ${statedAge}`, confidence: 0.92 };
+        }
+        // Age ≥ 18 — not a minor, don't flag
+        continue;
       }
+      // No age captured — flag with the pattern's evidence
       return { flagged: true, evidence, confidence: 0.7 };
     }
   }

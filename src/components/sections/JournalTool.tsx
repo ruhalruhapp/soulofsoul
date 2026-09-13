@@ -32,6 +32,18 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  deriveKey,
+  encryptEntry,
+  decryptEntry,
+  generateSalt,
+  generateEntryId,
+  serializeEntries,
+  deserializeEntries,
+  JOURNAL_SALT_KEY,
+  JOURNAL_ENTRIES_KEY,
+  type JournalEntry,
+} from "@/lib/journal-crypto";
 
 /**
  * Private Journal — §8.1.
@@ -46,81 +58,11 @@ import { cn } from "@/lib/utils";
  * - When enabled, the AI companion CANNOT see journal content (it's encrypted client-side
  *   before any sync). We surface this to the user explicitly.
  * - When the user locks the journal, the key is wiped from memory.
+ * - Encryption helpers extracted to /lib/journal-crypto.ts for unit testing.
  */
 
-interface JournalEntry {
-  id: string;
-  ts: number;
-  // Ciphertext base64 — never plaintext in this state
-  ciphertext: string;
-  iv: string; // initialization vector, base64
-  // Decrypted content only when journal is unlocked — held in transient state, not persisted
-  title?: string;
-}
-
-const SALT_KEY = "serenity-journal-salt";
-const ITERATIONS = 210_000;
-
-// ─── Encryption helpers (module-scope to satisfy react-hooks/immutability) ───
-
-async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(passphrase),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: ITERATIONS,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-async function encryptEntry(key: CryptoKey, plaintext: string): Promise<{ ciphertext: string; iv: string }> {
-  const enc = new TextEncoder();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    enc.encode(plaintext)
-  );
-  return {
-    ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
-    iv: btoa(String.fromCharCode(...iv)),
-  };
-}
-
-async function decryptEntry(key: CryptoKey, entry: JournalEntry): Promise<string> {
-  try {
-    const iv = new Uint8Array(
-      atob(entry.iv).split("").map((c) => c.charCodeAt(0))
-    );
-    const ciphertext = new Uint8Array(
-      atob(entry.ciphertext).split("").map((c) => c.charCodeAt(0))
-    );
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
-  } catch {
-    return "[Decryption failed — wrong key?]";
-  }
-}
-
 export function JournalTool() {
-  const [enabled, setEnabled] = useState(() => typeof window !== "undefined" && !!localStorage.getItem(SALT_KEY));
+  const [enabled, setEnabled] = useState(() => typeof window !== "undefined" && !!localStorage.getItem(JOURNAL_SALT_KEY));
   const [unlocked, setUnlocked] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [showPassphrase, setShowPassphrase] = useState(false);
@@ -135,25 +77,20 @@ export function JournalTool() {
   // Persist encrypted entries to localStorage (ciphertext only — never plaintext)
   useEffect(() => {
     if (entries.length > 0 && enabled) {
-      localStorage.setItem("serenity-journal-entries", JSON.stringify(entries));
+      localStorage.setItem(JOURNAL_ENTRIES_KEY, serializeEntries(entries));
     }
   }, [entries, enabled]);
 
   // Load entries on unlock — defer setState to escape the effect body
   useEffect(() => {
     if (!unlocked || !cryptoKey || entries.length > 0) return;
-    const stored = localStorage.getItem("serenity-journal-entries");
+    const stored = localStorage.getItem(JOURNAL_ENTRIES_KEY);
     if (!stored) return;
 
-    let parsed: JournalEntry[] = [];
-    try {
-      parsed = JSON.parse(stored);
-    } catch {
-      return;
-    }
+    const parsed = deserializeEntries(stored);
     if (parsed.length === 0) return;
 
-    // Use a flag to avoid loops, then schedule state updates outside the effect
+    // Schedule state updates outside the effect body to satisfy react-hooks rules
     const loadEntries = async () => {
       const cache: Record<string, string> = {};
       for (const e of parsed) {
@@ -175,8 +112,8 @@ export function JournalTool() {
       return;
     }
     // Generate salt
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    localStorage.setItem(SALT_KEY, Array.from(salt).join(","));
+    const salt = generateSalt();
+    localStorage.setItem(JOURNAL_SALT_KEY, Array.from(salt).join(","));
 
     // Derive key
     const key = await deriveKey(passphrase, salt);
@@ -190,7 +127,7 @@ export function JournalTool() {
   };
 
   const unlock = async () => {
-    const saltStr = localStorage.getItem(SALT_KEY);
+    const saltStr = localStorage.getItem(JOURNAL_SALT_KEY);
     if (!saltStr) {
       toast.error("No journal found. Enable journal first.");
       return;
@@ -214,7 +151,7 @@ export function JournalTool() {
     if (!newEntry.trim() || !cryptoKey) return;
     const { ciphertext, iv } = await encryptEntry(cryptoKey, newEntry);
     const entry: JournalEntry = {
-      id: crypto.randomUUID(),
+      id: generateEntryId(),
       ts: Date.now(),
       ciphertext,
       iv,
@@ -239,8 +176,8 @@ export function JournalTool() {
 
   const disableJournal = () => {
     if (!confirm("Disable private journal? All entries will be permanently deleted. This cannot be undone.")) return;
-    localStorage.removeItem(SALT_KEY);
-    localStorage.removeItem("serenity-journal-entries");
+    localStorage.removeItem(JOURNAL_SALT_KEY);
+    localStorage.removeItem(JOURNAL_ENTRIES_KEY);
     setEnabled(false);
     setUnlocked(false);
     setCryptoKey(null);
