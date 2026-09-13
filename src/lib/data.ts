@@ -683,3 +683,122 @@ export const REGULATORY_ITEMS: RegulatoryItem[] = [
   { id: "r13", jurisdiction: "Global", topic: "WCAG 2.2 AA accessibility audit", status: "in-progress", owner: "Eng", notes: "Crisis flows additionally usability-tested under stress conditions." },
 ];
 
+
+// ─── Enterprise Admin data (§10.2) ───
+
+// Aggregate-only metrics — no individual utilization data ever employer-visible.
+// k=25 minimum cohort size; differential-privacy noise added.
+export interface CohortMetric {
+  id: string;
+  label: string;
+  cohortSize: number;
+  // Raw aggregate value (in production: never exposed — only the noisy value is shown)
+  rawValue: number;
+  // Value after DP noise added (Laplace mechanism, epsilon=1.0)
+  noisyValue: number;
+  // Noise magnitude added (for transparency display)
+  noiseAdded: number;
+  unit: string;
+  trend: number[];
+  // Whether cohort is large enough to display (k=25 floor)
+  displayable: boolean;
+}
+
+export interface EnterpriseContract {
+  id: string;
+  name: string;
+  type: "Employer" | "University" | "Municipal" | "EAP replacement";
+  members: number;
+  cohortSize: number;
+  monthlyActiveRate: number; // %
+  tier4UtilizationRate: number; // %
+  status: "active" | "pilot" | "trial" | "renewal-due";
+  renewalDate: string;
+  slaUptime: number; // %
+  crisisPipelineAvailability: number; // %
+}
+
+export const ENTERPRISE_CONTRACTS: EnterpriseContract[] = [
+  { id: "ec1", name: "Northwind Tech (12k employees)", type: "Employer", members: 12480, cohortSize: 12480, monthlyActiveRate: 34.2, tier4UtilizationRate: 8.1, status: "active", renewalDate: "2027-03-15", slaUptime: 99.94, crisisPipelineAvailability: 100 },
+  { id: "ec2", name: "State University System", type: "University", members: 48200, cohortSize: 48200, monthlyActiveRate: 41.8, tier4UtilizationRate: 11.4, status: "active", renewalDate: "2027-08-30", slaUptime: 99.96, crisisPipelineAvailability: 100 },
+  { id: "ec3", name: "Riverside County Public Health", type: "Municipal", members: 3200, cohortSize: 3200, monthlyActiveRate: 22.7, tier4UtilizationRate: 5.3, status: "pilot", renewalDate: "2026-12-01", slaUptime: 99.91, crisisPipelineAvailability: 100 },
+  { id: "ec4", name: "GlobalSoft EAP Replacement", type: "EAP replacement", members: 28600, cohortSize: 28600, monthlyActiveRate: 38.5, tier4UtilizationRate: 9.8, status: "active", renewalDate: "2027-01-20", slaUptime: 99.93, crisisPipelineAvailability: 100 },
+  { id: "ec5", name: "Mercy Health Network", type: "Employer", members: 8400, cohortSize: 8400, monthlyActiveRate: 29.4, tier4UtilizationRate: 7.2, status: "renewal-due", renewalDate: "2026-10-15", slaUptime: 99.92, crisisPipelineAvailability: 100 },
+  { id: "ec6", name: "Pioneer Manufacturing", type: "Employer", members: 4200, cohortSize: 4200, monthlyActiveRate: 18.2, tier4UtilizationRate: 4.1, status: "trial", renewalDate: "2026-11-30", slaUptime: 99.88, crisisPipelineAvailability: 100 },
+];
+
+// Aggregate cohort metrics — per §10.2, employer dashboards report aggregate-only
+// with k=25 minimum and DP noise. No individual utilization data is ever employer-visible.
+export const COHORT_METRICS: CohortMetric[] = [
+  {
+    id: "cm1",
+    label: "Monthly active users",
+    cohortSize: 12480,
+    rawValue: 4268,
+    noisyValue: 4271,
+    noiseAdded: 3,
+    unit: "users",
+    trend: [3850, 3920, 4010, 4080, 4150, 4210, 4268],
+    displayable: true,
+  },
+  {
+    id: "cm2",
+    label: "Tier 4 session utilization",
+    cohortSize: 12480,
+    rawValue: 1011,
+    noisyValue: 1008,
+    noiseAdded: 3,
+    unit: "sessions",
+    trend: [820, 870, 910, 940, 970, 990, 1011],
+    displayable: true,
+  },
+  {
+    id: "cm3",
+    label: "Crisis pipeline activations",
+    cohortSize: 12480,
+    rawValue: 14,
+    noisyValue: 15,
+    noiseAdded: 1,
+    unit: "events",
+    trend: [11, 12, 10, 13, 12, 14, 14],
+    displayable: true,
+  },
+  {
+    id: "cm4",
+    label: "PHQ-9 average improvement (6 weeks)",
+    cohortSize: 312,
+    rawValue: 42.8,
+    noisyValue: 42.3,
+    noiseAdded: 0.5,
+    unit: "% reduction",
+    trend: [35.2, 36.8, 38.1, 39.5, 40.9, 41.7, 42.8],
+    displayable: true,
+  },
+  {
+    id: "cm5",
+    label: "Small department cohort (suppressed)",
+    cohortSize: 18,
+    rawValue: 0,
+    noisyValue: 0,
+    noiseAdded: 0,
+    unit: "users",
+    trend: [0, 0, 0, 0, 0, 0, 0],
+    displayable: false, // k=25 floor not met → not shown
+  },
+];
+
+// SLA tracking
+export const SLA_TARGETS = {
+  uptime: { target: 99.9, current: 99.94, unit: "%" },
+  crisisPipeline: { target: 100, current: 100, unit: "%" },
+  supportResponse: { target: 4, current: 2.3, unit: "business hours" }, // ≤ 4 business hours
+};
+
+// ERISA / ADA compliance guardrails
+export const ERISA_GUARDRAILS = [
+  "Utilization reporting follows ERISA/ADA guardrails",
+  "Clinical content of sessions is never reportable",
+  "No individual utilization data is ever employer-visible",
+  "Minimum cohort size k=25 enforced before any aggregate is shown",
+  "Differential-privacy noise (Laplace, ε=1.0) added to all aggregates",
+];

@@ -15,6 +15,7 @@ import { TelehealthSection } from "@/components/sections/TelehealthSection";
 import { CopilotSection } from "@/components/sections/CopilotSection";
 import { SupervisorSection } from "@/components/sections/SupervisorSection";
 import { SafetySection } from "@/components/sections/SafetySection";
+import { AdminSection } from "@/components/sections/AdminSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 
 export default function Home() {
@@ -44,6 +45,7 @@ export default function Home() {
               {section === "copilot" && <CopilotSection />}
               {section === "supervisor" && <SupervisorSection />}
               {section === "safety" && <SafetySection />}
+              {section === "admin" && <AdminSection />}
               {section === "settings" && <SettingsSection />}
             </div>
           </main>

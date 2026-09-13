@@ -19,11 +19,13 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
+  BookLock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { JournalTool } from "./JournalTool";
 
-type Tool = "breathing" | "mood" | "phq9" | "gad7";
+type Tool = "breathing" | "mood" | "phq9" | "gad7" | "journal";
 
 export function WellnessSection() {
   const [tool, setTool] = useState<Tool>("breathing");
@@ -39,17 +41,19 @@ export function WellnessSection() {
       </div>
 
       {/* Tool selector */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <ToolCard active={tool === "breathing"} onClick={() => setTool("breathing")} icon={Wind} label="Box Breathing" desc="4-4-4-4 · 2 min" />
         <ToolCard active={tool === "mood"} onClick={() => setTool("mood")} icon={Heart} label="Mood Tracker" desc="Daily log" />
         <ToolCard active={tool === "phq9"} onClick={() => setTool("phq9")} icon={Activity} label="PHQ-9" desc="Depression screen" />
         <ToolCard active={tool === "gad7"} onClick={() => setTool("gad7")} icon={Activity} label="GAD-7" desc="Anxiety screen" />
+        <ToolCard active={tool === "journal"} onClick={() => setTool("journal")} icon={BookLock} label="Private Journal" desc="Encrypted · §8.1" />
       </div>
 
       {tool === "breathing" && <BreathingTool />}
       {tool === "mood" && <MoodTool />}
       {tool === "phq9" && <AssessmentTool type="PHQ-9" />}
       {tool === "gad7" && <AssessmentTool type="GAD-7" />}
+      {tool === "journal" && <JournalTool />}
     </div>
   );
 }

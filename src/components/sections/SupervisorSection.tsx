@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { io, Socket } from "socket.io-client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,26 +22,82 @@ import {
   RefreshCw,
   Users,
   Zap,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 
 export function SupervisorSection() {
+  // Start with seed data, then merge in live events from the WebSocket mini-service.
   const [queue, setQueue] = useState<CrisisEvent[]>(CRISIS_QUEUE);
   const [filter, setFilter] = useState<"all" | "pending" | "active">("all");
+  const [liveConnected, setLiveConnected] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
 
-  // Live SLA countdown
+  // Connect to crisis-relay WebSocket mini-service (port 3030 via Caddy gateway)
+  useEffect(() => {
+    const socket = io("/?XTransformPort=3030", {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 2000,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setLiveConnected(true);
+      toast.success("Live crisis feed connected — events stream in real-time.");
+    });
+
+    socket.on("disconnect", () => {
+      setLiveConnected(false);
+    });
+
+    socket.on("crisis:queue", (initialQueue: CrisisEvent[]) => {
+      // Merge live queue with seed demo data — dedupe by id, live takes precedence
+      setQueue((prev) => {
+        const liveIds = new Set(initialQueue.map((e) => e.id));
+        const seed = prev.filter((e) => !liveIds.has(e.id));
+        return [...initialQueue, ...seed];
+      });
+    });
+
+    socket.on("crisis:event", (event: CrisisEvent) => {
+      setQueue((prev) => [event, ...prev].slice(0, 12));
+      toast.error(`New crisis event: ${event.reason}`, {
+        description: `${event.user} · ${event.channel} · language: ${event.language}`,
+      });
+    });
+
+    socket.on("crisis:tick", (updates: Array<{ id: string; slaRemainingSec: number }>) => {
+      setQueue((prev) =>
+        prev.map((e) => {
+          const update = updates.find((u) => u.id === e.id);
+          return update ? { ...e, slaRemainingSec: update.slaRemainingSec } : e;
+        })
+      );
+    });
+
+    socket.on("crisis:update", (updated: CrisisEvent) => {
+      setQueue((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Local SLA countdown fallback (in case WebSocket drops)
   useEffect(() => {
     const t = setInterval(() => {
       setQueue((prev) =>
         prev.map((e) =>
-          e.status === "pending" && e.slaRemainingSec > 0
+          e.status === "pending" && e.slaRemainingSec > 0 && !liveConnected
             ? { ...e, slaRemainingSec: e.slaRemainingSec - 1 }
             : e
         )
       );
     }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [liveConnected]);
 
   const filtered = queue.filter((e) => {
     if (filter === "pending") return e.status === "pending";
@@ -58,6 +115,8 @@ export function SupervisorSection() {
     setQueue((prev) =>
       prev.map((e) => (e.id === id ? { ...e, status, disposition, slaRemainingSec: 0 } : e))
     );
+    // Push to WebSocket service so other supervisor consoles see the update
+    socketRef.current?.emit("crisis:disposition", { id, status, disposition });
     toast.success("Disposition logged. Per §5.2 step 5, all dispositions are recorded for QA.");
   };
 
@@ -73,6 +132,18 @@ export function SupervisorSection() {
                 {pending} pending
               </Badge>
             )}
+            <Badge
+              variant={liveConnected ? "secondary" : "outline"}
+              className={cn(
+                "gap-1 text-xs",
+                liveConnected
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Radio className={cn("size-3", liveConnected && "animate-pulse")} />
+              {liveConnected ? "Live feed" : "Offline (retrying)"}
+            </Badge>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Persona D — Dev, on-call clinical supervisor. Triage crisis flags, manage

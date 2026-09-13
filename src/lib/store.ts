@@ -12,6 +12,7 @@ export type Section =
   | "copilot"
   | "supervisor"
   | "safety"
+  | "admin"
   | "settings";
 
 export interface MoodEntry {
