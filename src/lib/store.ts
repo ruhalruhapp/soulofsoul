@@ -13,6 +13,9 @@ export type Section =
   | "supervisor"
   | "safety"
   | "admin"
+  | "fhir"
+  | "research"
+  | "tdd"
   | "settings";
 
 export interface MoodEntry {

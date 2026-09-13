@@ -16,6 +16,9 @@ import { CopilotSection } from "@/components/sections/CopilotSection";
 import { SupervisorSection } from "@/components/sections/SupervisorSection";
 import { SafetySection } from "@/components/sections/SafetySection";
 import { AdminSection } from "@/components/sections/AdminSection";
+import { FhirSection } from "@/components/sections/FhirSection";
+import { ResearchSection } from "@/components/sections/ResearchSection";
+import { TddSection } from "@/components/sections/TddSection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 
 export default function Home() {
@@ -46,6 +49,9 @@ export default function Home() {
               {section === "supervisor" && <SupervisorSection />}
               {section === "safety" && <SafetySection />}
               {section === "admin" && <AdminSection />}
+              {section === "fhir" && <FhirSection />}
+              {section === "research" && <ResearchSection />}
+              {section === "tdd" && <TddSection />}
               {section === "settings" && <SettingsSection />}
             </div>
           </main>

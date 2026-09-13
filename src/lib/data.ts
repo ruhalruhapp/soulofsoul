@@ -802,3 +802,246 @@ export const ERISA_GUARDRAILS = [
   "Minimum cohort size k=25 enforced before any aggregate is shown",
   "Differential-privacy noise (Laplace, ε=1.0) added to all aggregates",
 ];
+
+// ─── FHIR R4 resources (§17.4) ───
+
+// Sample FHIR R4 resources for EHR integration demo.
+// Per §17.4: SMART on FHIR app launch for EHR-embedded co-pilot; US Core profiles for US payer exchange.
+export interface FhirResource {
+  id: string;
+  resourceType: string;
+  status?: string;
+  display?: string;
+  // Raw JSON of the resource (truncated for display)
+  raw: Record<string, unknown>;
+  // Whether this resource is in our system vs. the EHR
+  origin: "serenity" | "ehr";
+  // When the resource was last synced
+  lastSynced: string;
+}
+
+export const FHIR_RESOURCES: FhirResource[] = [
+  {
+    id: "fhir-1",
+    resourceType: "Patient",
+    display: "Marcus J. (MRN: 4827193)",
+    origin: "ehr",
+    lastSynced: "2026-09-13 01:42",
+    raw: {
+      resourceType: "Patient",
+      id: "marcus-4827193",
+      identifier: [{ system: "http://hospital.example.org/mrn", value: "4827193" }],
+      name: [{ family: "Jensen", given: ["Marcus"], use: "official" }],
+      gender: "male",
+      birthDate: "1984-03-15",
+      address: [{ city: "Portland", state: "OR", postalCode: "97201" }],
+      meta: { profile: ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient"] },
+    },
+  },
+  {
+    id: "fhir-2",
+    resourceType: "Practitioner",
+    display: "Dr. Elena Rostova, PsyD",
+    origin: "ehr",
+    lastSynced: "2026-09-13 01:42",
+    raw: {
+      resourceType: "Practitioner",
+      id: "practitioner-rostova",
+      identifier: [{ system: "http://hl7.org/fhir/sid/us-npi", value: "1538294716" }],
+      name: [{ family: "Rostova", given: ["Elena"], prefix: ["Dr."], use: "official" }],
+      qualification: [{ code: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/v2-0360", code: "PSY" }] } }],
+      meta: { profile: ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-practitioner"] },
+    },
+  },
+  {
+    id: "fhir-3",
+    resourceType: "Encounter",
+    display: "Session #149 — 2026-09-13 02:00 PM",
+    origin: "serenity",
+    lastSynced: "2026-09-13 01:42",
+    raw: {
+      resourceType: "Encounter",
+      id: "encounter-149",
+      status: "finished",
+      class: { system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "VR", display: "virtual" },
+      type: [{ coding: [{ system: "http://snomed.info/sct", code: "385763009", display: "Telepsychiatry consultation" }] }],
+      subject: { reference: "Patient/marcus-4827193" },
+      participant: [{ individual: { reference: "Practitioner/practitioner-rostova" } }],
+      period: { start: "2026-09-13T14:00:00-07:00", end: "2026-09-13T14:45:00-07:00" },
+    },
+  },
+  {
+    id: "fhir-4",
+    resourceType: "DocumentReference",
+    display: "Signed Smart Note — session 149",
+    origin: "serenity",
+    lastSynced: "2026-09-13 01:43",
+    raw: {
+      resourceType: "DocumentReference",
+      id: "docref-149",
+      status: "current",
+      type: { coding: [{ system: "http://loinc.org", code: "11506-3", display: "Progress note" }] },
+      subject: { reference: "Patient/marcus-4827193" },
+      author: [{ reference: "Practitioner/practitioner-rostova" }],
+      content: [{ attachment: { contentType: "text/plain", title: "Smart Note — SOAP — Marcus J. — 2026-09-13" } }],
+      meta: { profile: ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-documentreference"] },
+    },
+  },
+  {
+    id: "fhir-5",
+    resourceType: "Observation",
+    display: "PHQ-9 — score 11 (moderate) — 2026-09-13",
+    origin: "serenity",
+    lastSynced: "2026-09-13 01:43",
+    raw: {
+      resourceType: "Observation",
+      id: "obs-phq9-149",
+      status: "final",
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "survey" }] }],
+      code: { coding: [{ system: "http://loinc.org", code: "89204-2", display: "PHQ-9 quick depression assessment" }] },
+      subject: { reference: "Patient/marcus-4827193" },
+      effectiveDateTime: "2026-09-13T14:00:00-07:00",
+      valueInteger: 11,
+      interpretation: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", code: "POS", display: "Abnormal" }] }],
+      meta: { profile: ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-screening-assessments"] },
+    },
+  },
+  {
+    id: "fhir-6",
+    resourceType: "Consent",
+    display: "Telehealth session recording consent — session 149",
+    origin: "serenity",
+    lastSynced: "2026-09-13 01:43",
+    raw: {
+      resourceType: "Consent",
+      id: "consent-149",
+      status: "active",
+      scope: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/consentscope", code: "patient-privacy" }] },
+      category: [{ coding: [{ system: "http://loinc.org", code: "59284-0", display: "Patient Consent" }] }],
+      patient: { reference: "Patient/marcus-4827193" },
+      dateTime: "2026-09-13T14:00:00-07:00",
+      provision: { type: "permit", period: { start: "2026-09-13T14:00:00-07:00", end: "2026-09-13T14:45:00-07:00" } },
+    },
+  },
+  {
+    id: "fhir-7",
+    resourceType: "Flag",
+    display: "Safety hold — none active",
+    origin: "serenity",
+    lastSynced: "2026-09-13 01:43",
+    raw: {
+      resourceType: "Flag",
+      id: "flag-none",
+      status: "inactive",
+      category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/flag-category", code: "safety" }] }],
+      subject: { reference: "Patient/marcus-4827193" },
+      code: { text: "No active safety holds" },
+    },
+  },
+  {
+    id: "fhir-8",
+    resourceType: "Communication",
+    display: "Care-navigator outreach — false-positive dismissal",
+    origin: "serenity",
+    lastSynced: "2026-09-13 01:43",
+    raw: {
+      resourceType: "Communication",
+      id: "comm-149",
+      status: "completed",
+      subject: { reference: "Patient/marcus-4827193" },
+      sent: "2026-09-13T14:50:00-07:00",
+      payload: [{ contentString: "Care navigator contacted member following crisis-classifier false-positive dismissal. Member confirmed safe. Logged to evaluation set per §5.3." }],
+    },
+  },
+];
+
+// FHIR sync operations
+export interface FhirSyncOp {
+  id: string;
+  ts: string;
+  resource: string;
+  direction: "push" | "pull";
+  status: "success" | "failed" | "pending";
+  endpoint: string;
+  bytes: number;
+}
+
+export const FHIR_SYNC_OPS: FhirSyncOp[] = [
+  { id: "s1", ts: "2026-09-13 01:43:12", resource: "DocumentReference/docref-149", direction: "push", status: "success", endpoint: "/fhir/DocumentReference", bytes: 8424 },
+  { id: "s2", ts: "2026-09-13 01:43:14", resource: "Observation/obs-phq9-149", direction: "push", status: "success", endpoint: "/fhir/Observation", bytes: 1182 },
+  { id: "s3", ts: "2026-09-13 01:42:08", resource: "Patient/marcus-4827193", direction: "pull", status: "success", endpoint: "/fhir/Patient/4827193", bytes: 1944 },
+  { id: "s4", ts: "2026-09-13 01:42:09", resource: "Practitioner/practitioner-rostova", direction: "pull", status: "success", endpoint: "/fhir/Practitioner/1538294716", bytes: 1102 },
+  { id: "s5", ts: "2026-09-13 01:42:11", resource: "Consent/consent-149", direction: "push", status: "success", endpoint: "/fhir/Consent", bytes: 728 },
+  { id: "s6", ts: "2026-09-13 01:42:11", resource: "Flag/flag-none", direction: "push", status: "success", endpoint: "/fhir/Flag", bytes: 412 },
+  { id: "s7", ts: "2026-09-13 01:43:14", resource: "Encounter/encounter-149", direction: "push", status: "success", endpoint: "/fhir/Encounter", bytes: 1542 },
+  { id: "s8", ts: "2026-09-13 01:43:15", resource: "Communication/comm-149", direction: "push", status: "pending", endpoint: "/fhir/Communication", bytes: 0 },
+];
+
+// ─── Pillar 2: Digital Phenotyping research data (§4) ───
+
+// Per §4: opt-in research program. No user-facing output. No automated care escalation. No clinical claims.
+export interface HciSignal {
+  id: string;
+  type: "tap-latency" | "swipe-velocity" | "typing-rhythm" | "scroll-fluidity";
+  description: string;
+  // Aggregate stats from opt-in participants only
+  sampleSize: number;
+  participants: number;
+  // Note: NEVER tied to a user. Aggregate, de-identified only.
+  aggregate: { mean: number; median: number; stddev: number; unit: string };
+}
+
+export const HCI_SIGNALS: HciSignal[] = [
+  { id: "hci-1", type: "tap-latency", description: "Time between tap and UI response (ms)", sampleSize: 184720, participants: 312, aggregate: { mean: 142, median: 128, stddev: 48, unit: "ms" } },
+  { id: "hci-2", type: "swipe-velocity", description: "Swipe gesture velocity (px/s)", sampleSize: 92044, participants: 312, aggregate: { mean: 842, median: 810, stddev: 178, unit: "px/s" } },
+  { id: "hci-3", type: "typing-rhythm", description: "Inter-keystroke interval on free-text input (ms). NEVER captures typed content — only timing.", sampleSize: 41280, participants: 218, aggregate: { mean: 184, median: 168, stddev: 72, unit: "ms" } },
+  { id: "hci-4", type: "scroll-fluidity", description: "Scroll event delta over time (px/frame)", sampleSize: 248120, participants: 312, aggregate: { mean: 12.4, median: 11.8, stddev: 4.2, unit: "px/frame" } },
+];
+
+// Hard boundaries per §4.2
+export const PILLAR_2_BOUNDARIES = {
+  neverCollected: [
+    "Typed text content",
+    "Message bodies",
+    "Passwords",
+    "GPS / location",
+    "Microphone or ambient audio",
+    "Browsing history",
+    "Contact lists",
+  ],
+  storageRules: [
+    "Interaction-timing telemetry stored separately from message content",
+    "Separate consent record from telehealth audio (Smart Notes)",
+    "Separate encryption context (§8)",
+    "No individual-level inference shown to users, clinicians, or care-navigators",
+    "Only aggregate, de-identified findings reviewed quarterly (IRB-supervised protocol)",
+  ],
+  goNoGoGate: {
+    title: "Phase 3 gate — go / no-go decision",
+    criteria: [
+      "Validated within-person longitudinal model",
+      "FDA regulatory determination (likely SaMD)",
+      "Dedicated consent flow",
+    ],
+    status: "blocked",
+    note: "Until all three exist, this feature cannot trigger notifications, escalations, or clinician dashboards.",
+  },
+};
+
+// IRB research protocol summary
+export const IRB_PROTOCOL = {
+  title: "Pillar 2: HCI Biomarkers for Mood & Cognition — Observational Study",
+  irbId: "PRO-2026-04827",
+  pi: "Dr. Anjali Patel, PhD — Research Director",
+  status: "enrollment-open",
+  enrollmentTarget: 500,
+  enrolled: 312,
+  consentVersion: "v1.3 — 2026-08-22",
+  dataRetention: "Until consent revocation + 30 days",
+  reviewCadence: "Quarterly research review (IRB-supervised)",
+  outcomes: [
+    { name: "Within-person correlation: HCI signals × PHQ-9 trajectory", type: "exploratory", status: "in-progress", note: "Descriptive only — no clinical claims until powered analysis" },
+    { name: "Cognitive load inference from tap-latency variance", type: "exploratory", status: "in-progress", note: "Hypothesis-generating, not diagnostic" },
+    { name: "Aggregate swipe-velocity trends by time-of-day", type: "descriptive", status: "complete", note: "Quarterly review complete 2026-09-01" },
+  ],
+};

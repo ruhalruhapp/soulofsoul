@@ -20,6 +20,9 @@ export const T: Dict = {
   navSupervisor: { en: "Supervisor Console", ar: "وحدة الإشراف" },
   navSafety: { en: "Safety Engineering", ar: "هندسة السلامة" },
   navAdmin: { en: "Enterprise Admin", ar: "إدارة المؤسسات" },
+  navFhir: { en: "FHIR / EHR", ar: "FHIR / السجل الصحي" },
+  navResearch: { en: "Research Pilot", ar: "الدراسة البحثية" },
+  navTdd: { en: "Technical Design", ar: "التصميم التقني" },
   navSettings: { en: "Settings", ar: "الإعدادات" },
 
   crisisBar: {

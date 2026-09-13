@@ -23,6 +23,9 @@ import {
   ShieldAlert,
   ShieldCheck,
   Building2,
+  Network,
+  FlaskConical,
+  FileText,
   Settings as SettingsIcon,
   Moon,
   Sun,
@@ -47,6 +50,9 @@ const NAV: NavItem[] = [
   { id: "supervisor", labelKey: "navSupervisor", icon: ShieldAlert, badge: "1" },
   { id: "safety", labelKey: "navSafety", icon: ShieldCheck },
   { id: "admin", labelKey: "navAdmin", icon: Building2 },
+  { id: "fhir", labelKey: "navFhir", icon: Network },
+  { id: "research", labelKey: "navResearch", icon: FlaskConical },
+  { id: "tdd", labelKey: "navTdd", icon: FileText },
   { id: "settings", labelKey: "navSettings", icon: SettingsIcon },
 ];
 
