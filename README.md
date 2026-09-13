@@ -1,77 +1,81 @@
-# soulofsoul — Enterprise AI & Telehealth Mental Health Platform
+# soulofsoul
 
-A Next.js 16 reference implementation of PRD v1.4 for an enterprise-grade mental health platform. Bridges four care modalities — self-guided wellness, moderated peer support, conversational AI, and licensed telehealth — connected by layered safety guardrails and honest data governance.
+**Enterprise AI & Telehealth Mental Health Platform**
 
-**Status:** PRD v1.4 reference implementation. Not for clinical production use — safety classifier is a regex mock, not a validated model.
+soulofsoul is a stepped-care mental health SaaS that bridges four care modalities — self-guided wellness, moderated peer support, conversational AI, and licensed telehealth — connected by layered safety guardrails and honest data governance.
 
----
-
-## Quick start
-
-```bash
-# Install dependencies
-bun install
-
-# Run the dev server (auto-started by the sandbox; do NOT run manually in sandbox)
-bun run dev
-
-# Run unit tests (110 tests across crisis classifier, journal crypto, FHIR resources)
-bun test
-
-# Lint
-bun run lint
-
-# Start the crisis-relay mini-service (WebSocket supervisor feed)
-./scripts/start-crisis-relay.sh
-```
-
-Open [http://localhost:3000](http://localhost:3000) (or the preview URL in the sandbox).
-
-### Onboarding
-
-1. **Age verification** — enter birth year (18+ hard gate per §5.6)
-2. **Layered consent** — 4 separate consent streams (AI companion, telehealth recording, research telemetry, voice agent) per §8.3
-3. **Enter soulofsoul** — lands on the Home dashboard
+> **⚠️ Proprietary & Confidential**
+> This is a private, proprietary codebase owned by `ruhalruhapp`. All rights reserved. No part of this software may be reproduced, distributed, or used in any form without explicit written permission. See the footer of this README for full terms.
 
 ---
 
-## What's built
+## Platform overview
 
-### 12 product surfaces (sidebar navigation)
+soulofsoul implements a 4-tier hybrid care architecture:
 
-| Section | PRD § | What it does |
-|---|---|---|
-| **Home** | §1-2, §14 | Tiered architecture, design principles, KPI preview, release phasing, cost-to-serve |
-| **AI Companion** | §5, §6 | Real LLM chat (z-ai-web-dev-sdk), crisis classifier UI, voice mode with TTS, scope/safety side panel |
-| **Wellness** | §3 Tier 1 | Box-breathing tool, mood tracker, PHQ-9 + GAD-7 self-assessments, private journal (§8.1 AES-GCM) |
-| **Peer Space** | §3 Tier 2 | Moderated forum with AI pre-filter flags, moderator actions, safe-messaging cues |
-| **Telehealth** | §3 Tier 4 | In-network clinician directory, Smart Insights dashboard, booking flow |
-| **Clinician Co-Pilot** | §7 | Smart Notes SOAP draft with transcript anchors, edit-burden metric, `/api/notes` endpoint |
-| **Supervisor Console** | §5.4, §12 | Live WebSocket crisis queue, SLA countdown, disposition workflow, full KPI table |
-| **Safety Engineering** | §5.1, §17.3 | Parity gates per language/dialect, drift monitoring, Phase 0 deliverables, red-team results, rollback drills, regulatory matrix |
-| **Enterprise Admin** | §10.2 | Aggregate-only metrics with k=25 + Laplace DP noise, "what you can never see" card, SLA tracking |
-| **FHIR / EHR** | §17.4 | 8 FHIR R4 resources with US Core profiles, sync log, SMART on FHIR launch |
-| **Research Pilot** | §4 | Pillar 2 digital phenotyping, IRB consent flow, hard boundaries, go/no-go gate |
-| **Technical Design** | §17 | System architecture diagram, data flow, technology stack, 8 Architecture Decision Records |
-| **Settings** | §6, §8.3, §9, §17.2 | Memory editor (tombstoned ≤24h), 4 consent streams, language picker (EN + AR RTL), data governance, account deletion |
+| Tier | Name | Audience | Pricing |
+|---|---|---|---|
+| Tier 1 | Self-Guided Wellness | Sub-clinical users, self-help seekers | Free |
+| Tier 2 | AI Pro Companion | Daily wellness seekers | $9.99–$19.99/mo |
+| Tier 3 | In-Network Telehealth | Members needing diagnosis or medication | $0–$35/session copay |
+| Tier 4 | Enterprise & Public Health | Employers, universities, municipal systems | Contract / B2B |
+
+### Product surfaces
+
+The platform ships with 12 product sections (sidebar navigation):
+
+- **Home** — tiered architecture, KPIs, release phasing, cost-to-serve
+- **AI Companion** — LLM chat (z-ai-web-dev-sdk), TTS, voice mode, crisis classifier
+- **Wellness** — box-breathing, mood tracker, PHQ-9/GAD-7, private journal (AES-GCM §8.1)
+- **Peer Space** — moderated forum with AI pre-filter flags
+- **Telehealth** — clinician directory, Smart Insights, booking
+- **Clinician Co-Pilot** — Smart Notes with transcript anchors (§7.1)
+- **Supervisor Console** — live WebSocket crisis queue, SLA countdown
+- **Safety Engineering** — parity gates, drift monitoring, Phase 0, red-team, regulatory
+- **Enterprise Admin** — k=25 + Laplace DP noise (§10.2)
+- **FHIR / EHR** — 8 FHIR R4 resources with US Core profiles (§17.4)
+- **Research Pilot** — Pillar 2 digital phenotyping, IRB consent (§4)
+- **Technical Design** — architecture, dataflow, stack, 8 ADRs (§17)
+- **Settings** — memory editor, 4 consent streams, EN/AR RTL
 
 ### Cross-cutting safety features
 
-- **Always-visible crisis bar** — 1-tap 988/911/Crisis Text Line, geo-keyed (8 jurisdictions), reachable without an account (NG6)
-- **Crisis overlay** — renders §5.2 protocol: acknowledge, stay present, offer connection, notify supervision, schedule follow-up, false-positive dismissal per §5.3
-- **Minors off-boarding** — `detectMinors()` runs alongside crisis classifier; triggers §5.6 off-boarding flow with Trevor Project / 988 resources
-- **Age gate** — 18+ hard product gate (§5.6), not a terms-of-service afterthought
-- **Theme + RTL director** — light/dark mode + Arabic RTL layout toggle, persists across reloads
+- Always-visible crisis bar — 1-tap 988/911/Crisis Text Line, geo-keyed, reachable without an account
+- Crisis overlay rendering §5.2 protocol (acknowledge, stay present, offer connection, notify supervision)
+- Minors detection + off-boarding flow (§5.6)
+- Age gate (18+ hard product gate)
+- Layered consent — 4 separate streams per §8.3
+- Client-side AES-GCM 256-bit encryption for private journal
 
-### Real integrations (not mocks)
+### Production infrastructure
 
-- **LLM chat** — `z-ai-web-dev-sdk` chat completions with §5.5 hard guardrails in system prompt
-- **TTS** — `/api/tts` endpoint using `z-ai-web-dev-sdk` audio.tts returns WAV buffer; per-message play/stop buttons
-- **Smart Notes generation** — `/api/notes` endpoint generates real SOAP notes from transcript with anchor discipline
-- **WebSocket supervisor feed** — `mini-services/crisis-relay/` (port 3030) emits simulated crisis events every 25-45s; supervisor console connects via `/?XTransformPort=3030`
-- **Client-side encryption** — Web Crypto API (SubtleCrypto) AES-GCM 256-bit for private journal; PBKDF2 210k iterations; verified by tests
-- **FHIR R4 resources** — 8 sample resources with US Core profile conformance
-- **Crisis classifier** — regex-based mock with per-language gates (Arabic in "crisis-resource mode" per §5.1)
+- **Prisma schema** — 16 models across 3 data domains (Tier 3 chat, Tier 4 clinical, Pillar 2 research)
+- **NextAuth.js** — credentials provider, RBAC (member / clinician / supervisor / admin / researcher)
+- **Real ASR endpoint** (`/api/asr`) using z-ai-web-dev-sdk
+- **Pillar 2 telemetry collection** (`/api/telemetry`) — HCI timing signals, aggregate-only
+- **Crisis event persistence** (`/api/crisis`) — de-identified, SLA-tracked
+- **WebSocket mini-service** (`mini-services/crisis-relay`) on port 3030 — real-time supervisor console feed
+- **Docker + docker-compose** deployment config
+- **Health check endpoint** (`/api/health`)
+
+---
+
+## Tech stack
+
+| Layer | Technology | Version |
+|---|---|---|
+| Framework | Next.js (App Router) | 16.1.1 |
+| Language | TypeScript | 5.x |
+| Styling | Tailwind CSS | 4.x |
+| Components | shadcn/ui (New York) | latest |
+| State | Zustand | 5.x |
+| Database | Prisma ORM (SQLite client; Postgres in production) | 6.11 |
+| Auth | NextAuth.js | 4.24 |
+| LLM + TTS + ASR | z-ai-web-dev-sdk | 0.0.18 |
+| WebSocket | Socket.io (server + client) | 4.8 |
+| Runtime | Bun | 1.3 |
+| Testing | Bun test | built-in |
+| Containerization | Docker + docker-compose | — |
 
 ---
 
@@ -91,7 +95,8 @@ Open [http://localhost:3000](http://localhost:3000) (or the preview URL in the s
                          │
 ┌────────────────────────▼────────────────────────────────┐
 │ Layer 3 — App services (port 3000 + mini-services)      │
-│ /api/chat · /api/tts · /api/notes · crisis-relay:3030   │
+│ /api/chat · /api/tts · /api/notes · /api/asr            │
+│ /api/telemetry · /api/crisis · /api/auth · crisis-relay │
 └────────────────────────┬────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────┐
@@ -110,166 +115,172 @@ Open [http://localhost:3000](http://localhost:3000) (or the preview URL in the s
 
 ---
 
+## Quick start (development)
+
+### Prerequisites
+
+- [Bun](https://bun.sh) v1.3+
+- Node.js 18+ (for some tooling)
+- Git
+
+### Setup
+
+```bash
+# Clone (requires access — this is a private repo)
+git clone https://github.com/ruhalruhapp/soulofsoul.git
+cd soulofsoul
+
+# Install dependencies
+bun install
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL, NEXTAUTH_SECRET, etc.
+
+# Push Prisma schema to SQLite
+bun run db:push
+
+# Generate Prisma client
+bun run db:generate
+
+# Seed demo accounts
+bun run db:seed
+
+# Start the crisis-relay mini-service (in a separate terminal)
+./scripts/start-crisis-relay.sh
+
+# Start the dev server (auto-started in sandbox; run manually locally)
+bun run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Demo accounts (seeded)
+
+| Email | Password | Role |
+|---|---|---|
+| member@soulofsoul.dev | demo1234 | MEMBER |
+| clinician@soulofsoul.dev | demo1234 | CLINICIAN |
+| supervisor@soulofsoul.dev | demo1234 | SUPERVISOR |
+| admin@soulofsoul.dev | demo1234 | ADMIN |
+
+⚠️ **Change these passwords immediately in any non-dev environment.**
+
+---
+
 ## Testing
 
 ```bash
-bun test
+bun test          # Run all 110 unit tests
+bun run lint      # ESLint
 ```
 
-**110 tests across 3 files:**
+**Test coverage:**
 
-### `tests/crisis.test.ts` — safety-critical classifier (§5.1, §5.6)
-- 12 suicidal-ideation phrases → flagged
-- 3 self-harm phrases → flagged
-- 3 domestic-violence phrases → flagged
-- 3 overdose-risk phrases → flagged
-- 14 benign phrases → NOT flagged (false-positive regression)
-- 2 Arabic tests (crisis-resource mode behavior)
-- Latency budget test (<50ms per classification)
-- 14 minor self-identification phrases → flagged
-- 9 adult statements → NOT flagged
-
-### `tests/journal-crypto.test.ts` — §8.1 client-side encryption
-- Salt generation (16 bytes, randomness)
-- Entry ID generation (UUID, uniqueness)
-- Base64 encoding round-trips
-- PBKDF2 key derivation (different passphrases → different keys; different salts → different keys)
-- AES-GCM encrypt/decrypt round-trips (simple, long, unicode, empty, special chars)
-- **IV uniqueness** — critical for AES-GCM security; 20 encryptions of same plaintext produce 20 distinct IVs
-- Wrong-key decryption fails gracefully (no throw)
-- Serialization round-trips + filters malformed entries
-- Constants: 210,000 PBKDF2 iterations
-
-### `tests/fhir.test.ts` — §17.4 FHIR R4 resources
-- All 8 resources have required FHIR fields
-- US Core profile conformance (Patient, Practitioner, Observation)
-- PHQ-9 Observation has LOINC 89204-2 + integer value + status "final"
-- DocumentReference has LOINC 11506-3 (Progress note) + status "current"
-- Consent has patient-privacy scope + status "active"
-- Flag has safety category
-- Resource origins (soulofsoul-authored vs EHR-pulled)
-- Sync log structure + direction semantics + bytes accounting
-
----
-
-## PRD v1.4 coverage map
-
-| PRD § | Section | Status |
+| File | Tests | Coverage |
 |---|---|---|
-| §1-2 | Executive summary, goals, non-goals | Home |
-| §3 | Tiered care architecture | Home + 4 tier-specific sections |
-| §4 | Pillar 2 digital phenotyping | Research Pilot |
-| §5 | Layered safety | Companion + Supervisor + Safety Engineering |
-| §6 | Conversational AI | Companion (text + voice) |
-| §7 | Clinician co-pilot | Co-Pilot (Smart Notes + Smart Insights) |
-| §8 | Privacy & security | Settings (consent) + Journal (§8.1) |
-| §9 | Data governance | Settings (retention table) |
-| §10 | Monetization | Home (tiers) + Admin (§10.2) |
-| §11 | Personas | Reflected in section content |
-| §12 | KPIs | Supervisor Console + Safety Engineering |
-| §13 | Regulatory | Safety Engineering (Regulatory tab) |
-| §14 | Release phasing | Home + Safety Engineering (Phase 0) |
-| §15 | Acceptance criteria | Reflected in test patterns |
-| §16 | Open questions | TDD Key decisions (Open status) |
-| §17 | Technical appendix | TDD section |
+| `tests/crisis.test.ts` | 50 | Crisis classifier (§5.1) + minors detection (§5.6) — true positives, false-positive regression, Arabic crisis-resource mode, latency budget |
+| `tests/journal-crypto.test.ts` | 23 | AES-GCM encryption — IV uniqueness (critical for security), key derivation, round-trips, wrong-key handling |
+| `tests/fhir.test.ts` | 37 | FHIR R4 resources — US Core profile conformance, LOINC codes, resource origins, sync log semantics |
 
 ---
 
-## File structure
+## Deployment
 
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── chat/route.ts          # LLM chat (z-ai-web-dev-sdk)
-│   │   ├── notes/route.ts         # Smart Notes SOAP generation
-│   │   └── tts/route.ts           # TTS audio buffer
-│   ├── globals.css                # Clinical theme (teal/emerald, no indigo/blue)
-│   ├── layout.tsx
-│   └── page.tsx                   # Section router
-├── components/
-│   ├── sections/                  # 12 product surfaces
-│   │   ├── HomeSection.tsx
-│   │   ├── CompanionSection.tsx
-│   │   ├── WellnessSection.tsx
-│   │   ├── JournalTool.tsx        # §8.1 client-side encryption
-│   │   ├── PeerSection.tsx
-│   │   ├── TelehealthSection.tsx
-│   │   ├── CopilotSection.tsx
-│   │   ├── SupervisorSection.tsx  # WebSocket live feed
-│   │   ├── SafetySection.tsx
-│   │   ├── AdminSection.tsx       # §10.2 k=25 + Laplace DP
-│   │   ├── FhirSection.tsx        # §17.4
-│   │   ├── ResearchSection.tsx    # §4 Pillar 2
-│   │   ├── TddSection.tsx         # §17 technical design
-│   │   └── SettingsSection.tsx
-│   └── shell/
-│       ├── Sidebar.tsx
-│       ├── CrisisBar.tsx          # Always-visible, NG6
-│       ├── CrisisOverlay.tsx       # §5.2 protocol
-│       ├── MinorsOffboardOverlay.tsx # §5.6
-│       ├── OnboardingGate.tsx     # Age gate + layered consent
-│       └── ThemeDirector.tsx      # Dark mode + RTL
-├── lib/
-│   ├── crisis.ts                  # classifyCrisis + detectMinors (tested)
-│   ├── journal-crypto.ts          # AES-GCM helpers (tested)
-│   ├── store.ts                   # Zustand persisted state
-│   ├── i18n.ts                    # EN + AR strings
-│   └── data.ts                    # Mock data (clinicians, KPIs, FHIR, etc.)
-└── tests/
-    ├── crisis.test.ts             # 50 tests
-    ├── journal-crypto.test.ts     # 23 tests
-    └── fhir.test.ts               # 37 tests
+### Docker (recommended for production)
 
-mini-services/
-└── crisis-relay/                  # Socket.io mini-service (port 3030)
-    ├── index.ts
-    └── package.json
+```bash
+# Build and run all services
+docker-compose up -d
 
-scripts/
-└── start-crisis-relay.sh          # Detached launcher (setsid)
+# Or build the image manually
+docker build -t soulofsoul .
+docker run -p 3000:3000 -v soulofsoul-db:/app/db soulofsoul
 ```
 
----
+The Dockerfile is a multi-stage build:
+1. **deps** — installs dependencies
+2. **builder** — generates Prisma client + builds Next.js standalone
+3. **runner** — minimal runtime image, non-root user, health check, runs migrations at startup
 
-## Tech stack
+### Environment variables
 
-| Layer | Technology | Version |
+| Variable | Required | Description |
 |---|---|---|
-| Framework | Next.js (App Router) | 16.1.1 |
-| Language | TypeScript | 5.x |
-| Styling | Tailwind CSS | 4.x |
-| Components | shadcn/ui (New York) | latest |
-| State | Zustand | 5.x |
-| Server state | TanStack Query | 5.x |
-| Icons | Lucide React | 0.525 |
-| i18n | next-intl | 4.x |
-| Theme | next-themes | 0.4.x |
-| LLM + TTS | z-ai-web-dev-sdk | 0.0.18 |
-| Database | Prisma ORM (SQLite client) | 6.11 |
-| WebSocket | Socket.io (server + client) | 4.8 |
-| Runtime | Bun | 1.3 |
-| Testing | Bun test | built-in |
-| Linting | ESLint | 9.x |
+| `DATABASE_URL` | Yes | Prisma database URL (SQLite file path or Postgres connection string) |
+| `NEXTAUTH_SECRET` | Yes | Random string for JWT signing (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | Yes | Public URL of the deployment |
+| `ZAI_API_KEY` | No | z-ai-web-dev-sdk API key (or use `.z-ai-config` file) |
+
+---
+
+## Project structure
+
+```
+soulofsoul/
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml              # Lint + test on push/PR
+│   │   └── build.yml          # Verify Next.js build
+│   └── PULL_REQUEST_TEMPLATE.md
+├── .github/                    # CI/CD workflows
+├── prisma/
+│   └── schema.prisma           # 16 models across 3 data domains
+├── src/
+│   ├── app/
+│   │   ├── api/                # 8 API endpoints
+│   │   ├── layout.tsx
+│   │   ├── page.tsx            # Section router
+│   │   └── globals.css         # Clinical theme (teal/emerald)
+│   ├── components/
+│   │   ├── sections/           # 12 product sections
+│   │   └── shell/               # Sidebar, crisis bar, error boundary
+│   └── lib/
+│       ├── auth/                # NextAuth.js config
+│       ├── crisis.ts            # Crisis classifier (tested)
+│       ├── journal-crypto.ts   # AES-GCM helpers (tested)
+│       ├── db.ts                # Prisma client
+│       ├── store.ts             # Zustand state
+│       ├── i18n.ts              # EN + AR strings
+│       └── data.ts              # Seed/mock data
+├── tests/                       # 110 unit tests
+├── mini-services/
+│   └── crisis-relay/            # WebSocket supervisor feed (port 3030)
+├── scripts/
+│   ├── seed.ts                  # Demo account seeding
+│   └── start-crisis-relay.sh    # Detached mini-service launcher
+├── prd.md                       # Original PRD v1.4
+├── Dockerfile                   # Multi-stage production build
+├── docker-compose.yml           # web + crisis-relay services
+└── package.json
+```
 
 ---
 
 ## Critical safety notes
 
-**This is a reference implementation, not a clinical product.**
+⚠️ **This software is not yet FDA-cleared or HIPAA-certified for clinical production use.**
 
-1. **Crisis classifier is a regex mock.** Production requires a fine-tuned classifier with per-language gates (≥0.95 recall on validated test sets). The regex patterns here are intentionally narrow to minimize false positives but will miss many genuine crisis formulations.
-
-2. **No real clinical backend.** Clinician directory, peer posts, KPI values, FHIR resources, and supervisor queue events are mock data.
-
-3. **WebSocket mini-service simulates crisis events.** In production, the crisis-relay service would consume events from the safety classifier pipeline (Kafka/SQS) and fan them out to supervisor consoles.
-
-4. **Arabic voice classifier is in "crisis-resource mode"** per §5.1 — the recall gate (≥0.95) has not been met, so Arabic launches in crisis-resource mode only (no open-ended chat).
-
+1. **Crisis classifier is a regex mock.** Production requires a fine-tuned classifier with per-language gates (≥0.95 recall on validated test sets).
+2. **No real clinical backend.** Clinician directory, peer posts, KPI values, FHIR resources are mock data.
+3. **WebSocket mini-service simulates crisis events.** Production would consume from a real classifier pipeline (Kafka/SQS).
+4. **Arabic voice classifier is in "crisis-resource mode"** per §5.1 — the recall gate (≥0.95) has not been met.
 5. **Private journal uses real AES-GCM 256-bit encryption** via Web Crypto API, but the salt and ciphertext are stored in localStorage (browser-only). Production should sync ciphertext to an encrypted backend with the key never leaving the device.
+
+Before any clinical deployment, complete the Phase 0 deliverables specified in the PRD §14: STRIDE threat model, validated classifier test sets, supervision staffing model, regulatory classification memo, payer contracting, etc.
 
 ---
 
-## License
+## License & legal
 
-Reference implementation. Not for clinical production use.
+**© 2026 ruhalruhapp. All rights reserved.**
+
+This software and its source code are proprietary and confidential. No part of this software may be reproduced, distributed, transmitted, displayed, published, or broadcast without the prior written permission of the copyright holder.
+
+Unauthorized use, reproduction, or distribution of this software, via any medium, is strictly prohibited and may result in civil and criminal penalties.
+
+For licensing inquiries, partnerships, or enterprise deployment, contact: `ruhalruhapp`.
+
+---
+
+*Built on Next.js 16 + TypeScript + Prisma + NextAuth.js*
