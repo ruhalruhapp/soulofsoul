@@ -6,7 +6,7 @@ import type { Lang } from "./store";
 type Dict = Record<string, { en: string; ar: string }>;
 
 export const T: Dict = {
-  appName: { en: "Serenity", ar: "سيرينيتي" },
+  appName: { en: "soulofsoul", ar: "سيرينيتي" },
   tagline: {
     en: "Stepped-care mental health, 24/7",
     ar: "رعاية صحية نفسية متدرجة، على مدار الساعة",

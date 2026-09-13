@@ -168,7 +168,7 @@ export function OnboardingGate() {
                 disabled={!consent.aiCompanion}
                 className="w-full"
               >
-                {consent.aiCompanion ? "Enter Serenity" : "AI companion consent required"}
+                {consent.aiCompanion ? "Enter soulofsoul" : "AI companion consent required"}
               </Button>
             </DialogFooter>
             {!consent.aiCompanion && (

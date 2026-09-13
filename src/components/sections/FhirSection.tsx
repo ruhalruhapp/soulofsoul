@@ -160,7 +160,7 @@ export function FhirSection() {
                         : "text-muted-foreground"
                     )}
                   >
-                    {r.origin === "serenity" ? "Serenity" : "EHR"}
+                    {r.origin === "serenity" ? "soulofsoul" : "EHR"}
                   </Badge>
                 </div>
               );
@@ -184,7 +184,7 @@ export function FhirSection() {
               <Detail label="Resource type" value={selected.resourceType} />
               <Detail label="ID" value={String(selected.raw.id)} />
               <Detail label="Status" value={(selected.raw.status as string) ?? "—"} />
-              <Detail label="Origin" value={selected.origin === "serenity" ? "Serenity" : "EHR"} />
+              <Detail label="Origin" value={selected.origin === "serenity" ? "soulofsoul" : "EHR"} />
               <Detail label="Last synced" value={selected.lastSynced} />
               <Detail
                 label="US Core"
@@ -216,7 +216,7 @@ export function FhirSection() {
             Sync log
           </CardTitle>
           <CardDescription className="text-xs">
-            All sync operations audited. Push = Serenity → EHR; Pull = EHR → Serenity.
+            All sync operations audited. Push = soulofsoul → EHR; Pull = EHR → soulofsoul.
           </CardDescription>
         </CardHeader>
         <CardContent>

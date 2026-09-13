@@ -200,7 +200,7 @@ export function JournalTool() {
           </CardTitle>
           <CardDescription>
             Optional. Client-side AES-GCM 256-bit encryption. Your entries are encrypted on
-            this device before any sync — the server, the AI companion, and even Serenity's
+            this device before any sync — the server, the AI companion, and even soulofsoul's
             admins cannot read them.
           </CardDescription>
         </CardHeader>

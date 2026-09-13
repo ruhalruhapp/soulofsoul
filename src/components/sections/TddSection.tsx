@@ -42,7 +42,7 @@ export function TddSection() {
           <Badge variant="outline" className="text-xs">§17 — high-level</Badge>
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Architecture overview for Serenity. Detailed design lives in the TDD; this view
+          Architecture overview for soulofsoul. Detailed design lives in the TDD; this view
           summarizes the system: services, data domains, request paths, and the
           engineering decisions behind them.
         </p>

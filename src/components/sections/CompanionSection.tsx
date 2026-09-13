@@ -134,7 +134,7 @@ export function CompanionSection() {
         id: crypto.randomUUID(),
         role: "assistant",
         content:
-          "Thank you for being honest with me. Serenity is built for adults, but the support you deserve is real — I'm going to point you to people who specialize in helping young people. You're not in trouble.",
+          "Thank you for being honest with me. soulofsoul is built for adults, but the support you deserve is real — I'm going to point you to people who specialize in helping young people. You're not in trouble.",
         ts: Date.now(),
         anchored: false,
         viaVoice: voiceMode,
@@ -350,7 +350,7 @@ export function CompanionSection() {
                 <Bot className="size-6 text-primary" />
               </div>
               <div className="space-y-1">
-                <div className="font-medium">Hi — I'm Serenity.</div>
+                <div className="font-medium">Hi — I'm soulofsoul.</div>
                 <p className="text-xs text-muted-foreground max-w-sm">
                   {tr("aiIdentity", lang)}
                 </p>

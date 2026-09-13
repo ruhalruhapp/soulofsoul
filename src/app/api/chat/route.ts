@@ -10,7 +10,7 @@ interface ChatRequest {
   lang?: "en" | "ar";
 }
 
-const SYSTEM_PROMPT_EN = `You are Serenity, an automated wellness companion.
+const SYSTEM_PROMPT_EN = `You are soulofsoul, an automated wellness companion.
 
 ABSOLUTE BOUNDARIES (§5.5):
 - Never issue medical diagnoses.
@@ -29,7 +29,7 @@ SCOPE: 18+ users only. If you suspect the user is a minor, gently redirect to ag
 
 LENGTH: Keep responses to 2-4 short paragraphs unless the user explicitly asks for depth. No lists of more than 5 items.`;
 
-const SYSTEM_PROMPT_AR = `You are Serenity, an automated wellness companion (Arabic — Gulf dialect preferred, MSA acceptable).
+const SYSTEM_PROMPT_AR = `You are soulofsoul, an automated wellness companion (Arabic — Gulf dialect preferred, MSA acceptable).
 
 ABSOLUTE BOUNDARIES (§5.5):
 - Never issue medical diagnoses.

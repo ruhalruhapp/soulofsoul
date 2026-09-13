@@ -104,7 +104,7 @@ export function ResearchSection() {
               <p className="text-xs text-muted-foreground">
                 {enrolled
                   ? "You can withdraw at any time. Collection stops within 24h; existing data deleted within 30 days."
-                  : "Pillar 2 is an opt-in research program. Your regular use of Serenity is unaffected. No HCI telemetry is collected unless you enroll."}
+                  : "Pillar 2 is an opt-in research program. Your regular use of soulofsoul is unaffected. No HCI telemetry is collected unless you enroll."}
               </p>
             </div>
             {enrolled ? (
@@ -322,7 +322,7 @@ export function ResearchSection() {
               checked={acknowledged.optional}
               onChange={(v) => setAcknowledged((p) => ({ ...p, optional: v }))}
               title="Participation is fully optional"
-              desc="Your regular use of Serenity is unaffected. Tier 1, Tier 2, Tier 3, Tier 4 — all work the same whether you enroll or not."
+              desc="Your regular use of soulofsoul is unaffected. Tier 1, Tier 2, Tier 3, Tier 4 — all work the same whether you enroll or not."
             />
             <ConsentAck
               checked={acknowledged.aggregate}

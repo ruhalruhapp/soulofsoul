@@ -1,0 +1,39 @@
+# soulofsoul — local development with all services
+# Usage: docker-compose up
+
+services:
+  # Main Next.js application
+  web:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/db/soulofsoul.db
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dev-secret-change-in-production}
+      - NODE_ENV=production
+    volumes:
+      - soulofsoul-db:/app/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # Crisis-relay WebSocket mini-service
+  crisis-relay:
+    build:
+      context: ./mini-services/crisis-relay
+    ports:
+      - "3030:3030"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  soulofsoul-db:
+    driver: local

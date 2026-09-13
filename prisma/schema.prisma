@@ -1,8 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// soulofsoul — Prisma schema for the enterprise mental health platform.
+// Per §8.1: three separate data domains (Tier 3 chat, Tier 4 clinical, Pillar 2 research)
+// are modeled as separate tables with distinct access patterns.
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +11,373 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Authentication & Users ───
+
 model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  // Hashed via NextAuth.js credentials provider (bcrypt)
+  passwordHash  String?
+  // Role-based access control
+  role          UserRole @default(MEMBER)
+  // Age verification — §5.6 hard gate
+  ageVerified   Boolean  @default(false)
+  birthYear     Int?
+  // Account state
+  tier          Int      @default(1) // 1=free, 2=pro, 3=telehealth, 4=enterprise
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete — §9 retention
+
+  // Relations
+  member        Member?
+  clinician     Clinician?
+  sessions      Session[]
+  accounts      Account[]
+  consents      ConsentRecord[]
+  memories      MemoryEntry[]
+  moods         MoodEntry[]
+  assessments   AssessmentResult[]
+  chatMessages  ChatMessage[]
+  peerPosts     PeerPost[]
+  telemetryEvents TelemetryEvent[]
+  journalEntries JournalEntryDb[]
+  crisisEvents  CrisisEvent[] // as supervisor disposition
+}
+
+enum UserRole {
+  MEMBER
+  CLINICIAN
+  SUPERVISOR
+  ADMIN
+  RESEARCHER
+}
+
+// NextAuth.js session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// NextAuth.js verification token (email flows)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  @@unique([identifier, token])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+// ─── Member profile (Tier 1-3 user data) ───
+
+model Member {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Care navigation
+  careNavigatorId String? // assigned navigator (clinician)
+  // Consent state — §8.3 layered
+  consentAiCompanion       Boolean @default(false)
+  consentTelehealthRecord  Boolean @default(false)
+  consentResearchTelemetry Boolean @default(false)
+  consentVoiceAgent        Boolean @default(false)
+  // Language preference — §6
+  language        String   @default("en")
+  // Enterprise contract (if Tier 4)
+  enterpriseContractId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Domain A: Tier 3 chat store (§8.1) ───
+
+model ChatMessage {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // "user" | "assistant" | "system"
+  content   String   // encrypted at rest per §8.1
+  // Crisis classifier output (§5.1)
+  flagged   Boolean  @default(false)
+  flagReason String?
+  // Voice mode tracking (§6.4)
+  viaVoice  Boolean  @default(false)
+  // Grounding discipline (§7.1)
+  anchored  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model MemoryEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String   // encrypted at rest
+  category  String   // "pattern" | "goal" | "fact" | "preference"
+  // §17.2: tombstoned on delete, excluded from retrieval within 24h
+  pendingDeletion Boolean @default(false)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model MoodEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int      // 1-5
+  note      String?
+  tags      String   // JSON-encoded array
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AssessmentResult {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "PHQ-9" | "GAD-7" | "PSS"
+  score     Int
+  severity  String
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt])
+}
+
+// ─── Tier 2: Peer space ───
+
+model PeerPost {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  tags      String   // JSON-encoded array
+  // §3.2: AI pre-filter flags
+  aiFlag    String   @default("clean") // "clean" | "review" | "escalate"
+  moderatorAction String?
+  hearts    Int      @default(0)
+  replies   Int      @default(0)
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  @@index([createdAt])
+  @@index([aiFlag])
+}
+
+// ─── Domain B: Tier 4 clinical record (§8.1, §17.4 FHIR R4) ───
+
+model Clinician {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  credentials   String   // e.g. "PsyD, Licensed Clinical Psychologist"
+  npi           String?  // National Provider Identifier — §17.4 FHIR Practitioner
+  specialties   String   // JSON-encoded array
+  modality      String   // "video" | "video+psychiatry"
+  // PSYPACT/IMLC enrollment — §13
+  licensureStates String // JSON-encoded array of state codes
+  rating        Float    @default(4.5)
+  sessionsCompleted Int  @default(0)
+  inNetwork     Boolean  @default(true)
+  // Availability
+  nextAvailable String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointments  Appointment[]
+  notes          SmartNote[]
+  insights       SmartInsight[]
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  memberId     String
+  clinicianId  String
+  clinician    Clinician @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+  // Scheduling
+  scheduledAt  DateTime
+  durationMin  Int      @default(45)
+  status       String   @default("scheduled") // "scheduled" | "completed" | "cancelled" | "no-show"
+  // §8.3: per-session dual consent for recording
+  memberConsented   Boolean @default(false)
+  clinicianConsented Boolean @default(false)
+  // Tier 3 economics — §10.1
+  copayAmount  Float?
+  payerClaimId String?
+  createdAt    DateTime @default(now())
+
+  notes        SmartNote[]
+
+  @@index([clinicianId, scheduledAt])
+  @@index([memberId])
+}
+
+model SmartNote {
+  id           String   @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  clinicianId   String
+  clinician     Clinician @relation(fields: [clinicianId], references: [id])
+  // SOAP structure — §7.1
+  subjective   String
+  objective     String
+  assessment    String
+  plan          String
+  // §7.1: anchor discipline — every statement traceable to transcript
+  transcriptAnchors String // JSON-encoded [{statement, anchor: "L1-L8"}]
+  unanchoredCount Int     @default(0)
+  // Sign-off workflow
+  signed       Boolean  @default(false)
+  signedAt     DateTime?
+  // FHIR DocumentReference ID after sync — §17.4
+  fhirDocRefId String?
+  createdAt    DateTime @default(now())
+
+  @@index([clinicianId, createdAt])
+}
+
+model SmartInsight {
+  id           String   @id @default(cuid())
+  clinicianId  String
+  clinician    Clinician @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+  memberId     String
+  // §7.2: anchoring discipline — every claim links to source data
+  kind         String   // "theme" | "goal" | "risk" | "score-trend"
+  text         String
+  source       String   // e.g. "Sessions #142, #145 — chat transcripts"
+  editable     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([clinicianId, memberId])
+}
+
+// ─── Crisis pipeline (§5) ───
+
+model CrisisEvent {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  // De-identified for supervisor console
+  deidentifiedId String
+  reason       String
+  language     String
+  channel      String   // "text" | "voice"
+  // §5.4 SLA tracking
+  status       String   @default("pending") // "pending" | "reviewing" | "outreached" | "closed"
+  slaDeadline  DateTime
+  reviewedAt   DateTime?
+  disposition  String?
+  // §5.2 step 5: all dispositions logged for QA
+  reviewedBy   String?  // supervisor user ID
+  createdAt    DateTime @default(now())
+
+  @@index([status, createdAt])
+}
+
+// ─── Consent records (§8.3) ───
+
+model ConsentRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Which consent stream
+  stream    String   // "aiCompanion" | "telehealthRecording" | "researchTelemetry" | "voiceAgent"
+  granted   Boolean
+  // Versioned consent — IRB compliance
+  consentVersion String
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, stream])
+}
+
+// ─── Domain C: Pillar 2 research telemetry (§4) ───
+
+model TelemetryEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // §4.1: HCI signal type — timing ONLY, never content
+  type      String   // "tap-latency" | "swipe-velocity" | "typing-rhythm" | "scroll-fluidity"
+  // Aggregate value — never individual keystrokes or content
+  value     Float
+  unit      String
+  // §4.2: separate consent record, separate encryption context
+  consentVersion String
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt])
+}
+
+// Private journal entries — §8.1 client-side encrypted
+// These are stored in localStorage on the client; this table is for optional
+// ciphertext sync (if the user wants journal backup across devices).
+model JournalEntryDb {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // AES-GCM 256-bit ciphertext (base64) — key never leaves device
+  ciphertext String
+  iv        String
+  title     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── Enterprise contracts (§10.2) ───
+
+model EnterpriseContract {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // "Employer" | "University" | "Municipal" | "EAP replacement"
+  members   Int
+  // §10.2: SLA tracking
+  slaUptime Float    @default(99.9)
+  crisisPipelineAvailability Float @default(100)
+  // Contract state
+  status    String   @default("active") // "active" | "pilot" | "trial" | "renewal-due"
+  renewalDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Post {
+// ─── Audit log (§8.1 — all access logged and auditable) ───
+
+model AuditLog {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  userId    String?
+  action    String   // e.g. "read:chat_message", "write:smart_note", "crisis:disposition"
+  resourceType String?
+  resourceId String?
+  ipAddress String?
+  userAgent String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }

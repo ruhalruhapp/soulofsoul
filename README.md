@@ -1,4 +1,4 @@
-# Serenity — Enterprise AI & Telehealth Mental Health Platform
+# soulofsoul — Enterprise AI & Telehealth Mental Health Platform
 
 A Next.js 16 reference implementation of PRD v1.4 for an enterprise-grade mental health platform. Bridges four care modalities — self-guided wellness, moderated peer support, conversational AI, and licensed telehealth — connected by layered safety guardrails and honest data governance.
 
@@ -31,7 +31,7 @@ Open [http://localhost:3000](http://localhost:3000) (or the preview URL in the s
 
 1. **Age verification** — enter birth year (18+ hard gate per §5.6)
 2. **Layered consent** — 4 separate consent streams (AI companion, telehealth recording, research telemetry, voice agent) per §8.3
-3. **Enter Serenity** — lands on the Home dashboard
+3. **Enter soulofsoul** — lands on the Home dashboard
 
 ---
 
@@ -147,7 +147,7 @@ bun test
 - DocumentReference has LOINC 11506-3 (Progress note) + status "current"
 - Consent has patient-privacy scope + status "active"
 - Flag has safety category
-- Resource origins (Serenity-authored vs EHR-pulled)
+- Resource origins (soulofsoul-authored vs EHR-pulled)
 - Sync log structure + direction semantics + bytes accounting
 
 ---

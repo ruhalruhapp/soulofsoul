@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Serenity — Enterprise Mental Health Platform",
+  title: "soulofsoul — Enterprise Mental Health Platform",
   description:
     "Stepped-care mental health platform: self-guided wellness, AI companion, peer support, and licensed telehealth — with layered clinical safety guardrails.",
   keywords: [
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     "crisis support",
     "behavioral health",
   ],
-  authors: [{ name: "Serenity Platform" }],
+  authors: [{ name: "soulofsoul Platform" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },

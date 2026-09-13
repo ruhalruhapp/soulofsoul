@@ -9,7 +9,7 @@ interface NotesRequest {
   memberName?: string;
 }
 
-const SYSTEM_PROMPT = `You are Serenity's clinical documentation assistant. You draft SOAP-format notes from session transcripts.
+const SYSTEM_PROMPT = `You are soulofsoul's clinical documentation assistant. You draft SOAP-format notes from session transcripts.
 
 CRITICAL RULES (§7.1):
 1. Every clinical statement must be traceable to a transcript line range, formatted as [L<start>-L<end>].

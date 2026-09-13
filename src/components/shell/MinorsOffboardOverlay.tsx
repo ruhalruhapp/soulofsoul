@@ -40,7 +40,7 @@ export function MinorsOffboardOverlay() {
             We're glad you reached out — and we want to point you to the right place
           </DialogTitle>
           <DialogDescription>
-            Serenity is built for adults 18 and older. That's not because your experiences
+            soulofsoul is built for adults 18 and older. That's not because your experiences
             don't matter — they absolutely do. It's because the support that fits you best
             looks different, and we want to make sure you get to people who specialize in
             helping young people.

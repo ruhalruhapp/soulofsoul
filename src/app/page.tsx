@@ -91,7 +91,7 @@ export default function Home() {
           <div className="container max-w-7xl mx-auto px-4 sm:p-6 lg:px-8 py-3 text-[11px] text-muted-foreground">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                Serenity — v1.4 reference implementation. Stepped-care mental health platform.
+                soulofsoul — v1.4 reference implementation. Stepped-care mental health platform.
                 Not a substitute for emergency services.
               </div>
               <div className="flex items-center gap-2">
