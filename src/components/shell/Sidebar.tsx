@@ -21,6 +21,7 @@ import {
   Video,
   Stethoscope,
   ShieldAlert,
+  ShieldCheck,
   Settings as SettingsIcon,
   Moon,
   Sun,
@@ -43,6 +44,7 @@ const NAV: NavItem[] = [
   { id: "telehealth", labelKey: "navTelehealth", icon: Video },
   { id: "copilot", labelKey: "navCopilot", icon: Stethoscope },
   { id: "supervisor", labelKey: "navSupervisor", icon: ShieldAlert, badge: "1" },
+  { id: "safety", labelKey: "navSafety", icon: ShieldCheck },
   { id: "settings", labelKey: "navSettings", icon: SettingsIcon },
 ];
 

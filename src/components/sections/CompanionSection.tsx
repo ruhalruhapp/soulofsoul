@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAppStore, type ChatMessage } from "@/lib/store";
-import { classifyCrisis } from "@/lib/crisis";
+import { classifyCrisis, detectMinors } from "@/lib/crisis";
 import { tr } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,18 +35,73 @@ import {
 import { toast } from "sonner";
 
 export function CompanionSection() {
-  const { chat, appendChat, resetChat, lang, triggerCrisis, memories, consent, setSection } =
+  const { chat, appendChat, resetChat, lang, triggerCrisis, triggerMinorsOffboard, memories, consent, setSection } =
     useAppStore();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceState, setVoiceState] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const [screenStalled, setScreenStalled] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [chat]);
+
+  // Real TTS playback using z-ai-web-dev-sdk audio.tts via /api/tts
+  const playTTS = async (text: string, msgId: string) => {
+    try {
+      setSpeakingId(msgId);
+      setVoiceState("speaking");
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: "tongtong", speed: 1.0 }),
+      });
+
+      if (!res.ok) {
+        throw new Error("TTS request failed");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      // Stop any existing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        setSpeakingId(null);
+        setVoiceState("idle");
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => {
+        setSpeakingId(null);
+        setVoiceState("idle");
+        URL.revokeObjectURL(url);
+      };
+      await audio.play();
+    } catch (err) {
+      console.error("[TTS] playback failed:", err);
+      setSpeakingId(null);
+      setVoiceState("idle");
+      // Per §6.4.2: graceful degradation to text — voice mode remains usable
+    }
+  };
+
+  const stopTTS = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setSpeakingId(null);
+    setVoiceState("idle");
+  };
 
   const send = async (text?: string) => {
     const content = (text ?? input).trim();
@@ -54,6 +109,8 @@ export function CompanionSection() {
 
     // §5.1 — run crisis classifier on user message (real-time, pre-send)
     const crisis = classifyCrisis(content, lang);
+    // §5.6 — run minors detection
+    const minors = detectMinors(content);
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -68,9 +125,26 @@ export function CompanionSection() {
     setInput("");
     setSending(true);
 
+    // §5.6 — minors self-identification triggers off-boarding flow
+    if (minors.flagged) {
+      triggerMinorsOffboard();
+      toast.warning("Minors policy triggered — redirecting to age-appropriate resources.");
+      // Still append a gentle AI response before the overlay takes over
+      appendChat({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          "Thank you for being honest with me. Serenity is built for adults, but the support you deserve is real — I'm going to point you to people who specialize in helping young people. You're not in trouble.",
+        ts: Date.now(),
+        anchored: false,
+        viaVoice: voiceMode,
+      });
+      setSending(false);
+      return;
+    }
+
     if (crisis.flagged) {
       // §5.2 — trigger crisis protocol; AI does NOT end conversation.
-      // Still send to LLM for a present, validating reply that offers connection to help.
       triggerCrisis(crisis.reason!);
       toast.error("Crisis protocol activated — a supervisor has been notified.");
     }
@@ -112,7 +186,6 @@ export function CompanionSection() {
       const data = await res.json();
 
       setScreenStalled(false);
-      setVoiceState("speaking");
 
       const aiMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -128,10 +201,9 @@ export function CompanionSection() {
         toast.warning("Safety classifier degraded — response is bridging only.");
       }
 
-      // Voice timing — simulate TTS playback
-      if (voiceMode) {
-        const dur = Math.min(8000, data.content.length * 35);
-        setTimeout(() => setVoiceState("idle"), dur);
+      // §6.4 — real TTS playback when in voice mode
+      if (voiceMode && data.content) {
+        await playTTS(data.content, aiMsg.id);
       }
     } catch (err) {
       setScreenStalled(false);
@@ -161,6 +233,9 @@ export function CompanionSection() {
         "Arabic voice mode is in crisis-resource mode (§5.1 gate not yet met). Text chat remains available."
       );
       return;
+    }
+    if (voiceMode) {
+      stopTTS();
     }
     setVoiceMode((v) => !v);
     setVoiceState("idle");
@@ -307,7 +382,13 @@ export function CompanionSection() {
           )}
 
           {chat.map((m) => (
-            <MessageBubble key={m.id} msg={m} />
+            <MessageBubble
+              key={m.id}
+              msg={m}
+              speakingId={speakingId}
+              onPlay={playTTS}
+              onStop={stopTTS}
+            />
           ))}
 
           {sending && (
@@ -490,8 +571,19 @@ export function CompanionSection() {
   );
 }
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({
+  msg,
+  speakingId,
+  onPlay,
+  onStop,
+}: {
+  msg: ChatMessage;
+  speakingId?: string | null;
+  onPlay?: (text: string, id: string) => void;
+  onStop?: () => void;
+}) {
   const isUser = msg.role === "user";
+  const isSpeaking = speakingId === msg.id;
   return (
     <div className={cn("flex gap-2", isUser && "flex-row-reverse")}>
       <div
@@ -531,6 +623,27 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
               <Info className="size-2.5" />
               bridging only
             </Badge>
+          )}
+          {!isUser && onPlay && msg.anchored && (
+            <button
+              onClick={() => {
+                if (isSpeaking) {
+                  onStop?.();
+                } else {
+                  onPlay(msg.content, msg.id);
+                }
+              }}
+              className={cn(
+                "inline-flex items-center gap-0.5 px-1 py-0 h-3.5 rounded text-[9px] transition-colors",
+                isSpeaking
+                  ? "bg-primary/15 text-primary"
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+              aria-label={isSpeaking ? "Stop audio" : "Play audio"}
+            >
+              {isSpeaking ? <Square className="size-2.5" /> : <Volume2 className="size-2.5" />}
+              {isSpeaking ? "stop" : "play"}
+            </button>
           )}
           {new Date(msg.ts).toLocaleTimeString([], {
             hour: "2-digit",

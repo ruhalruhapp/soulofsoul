@@ -18,6 +18,7 @@ export const T: Dict = {
   navTelehealth: { en: "Telehealth", ar: "الرعاية عن بُعد" },
   navCopilot: { en: "Clinician Co-Pilot", ar: "مساعد الطبيب" },
   navSupervisor: { en: "Supervisor Console", ar: "وحدة الإشراف" },
+  navSafety: { en: "Safety Engineering", ar: "هندسة السلامة" },
   navSettings: { en: "Settings", ar: "الإعدادات" },
 
   crisisBar: {

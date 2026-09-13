@@ -47,6 +47,49 @@ const HIGH_ACUITY_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   },
 ];
 
+// Minors detection (§5.6) — gentle, conservative. False positives route to human review
+// rather than auto-off-boarding. Production would use a dedicated classifier with stricter thresholds.
+const MINORS_PATTERNS: Array<{ pattern: RegExp; evidence: string }> = [
+  {
+    pattern: /\bI[''m]+\s+(?:only\s+)?(\d{1,2})\b.*(?:year|yr|yo|old)/i,
+    evidence: "Stated age below 18",
+  },
+  {
+    pattern: /\bI[''m]+\s+(?:a\s+)?(?:kid|child|teen(?:ager)?|minor)\b/i,
+    evidence: "Self-identified as minor",
+  },
+  {
+    pattern: /\b(?:in|at)\s+(?:middle|high)\s+school\b/i,
+    evidence: "Stated school enrollment",
+  },
+  {
+    pattern: /\bI[''m]+\s+not\s+(?:18|eighteen|an\s+adult)\b/i,
+    evidence: "Explicit denial of adult status",
+  },
+];
+
+export interface MinorsResult {
+  flagged: boolean;
+  evidence?: string;
+  confidence: number;
+}
+
+export function detectMinors(text: string): MinorsResult {
+  for (const { pattern, evidence } of MINORS_PATTERNS) {
+    const match = text.match(pattern);
+    if (match) {
+      // Extract the stated age if present
+      const ageMatch = text.match(/\b(\d{1,2})\b/);
+      const statedAge = ageMatch ? parseInt(ageMatch[1], 10) : null;
+      if (statedAge !== null && statedAge > 0 && statedAge < 18) {
+        return { flagged: true, evidence: `Stated age: ${statedAge}`, confidence: 0.92 };
+      }
+      return { flagged: true, evidence, confidence: 0.7 };
+    }
+  }
+  return { flagged: false, confidence: 0.95 };
+}
+
 export function classifyCrisis(
   text: string,
   lang: "en" | "ar" = "en"

@@ -11,6 +11,7 @@ export type Section =
   | "telehealth"
   | "copilot"
   | "supervisor"
+  | "safety"
   | "settings";
 
 export interface MoodEntry {
@@ -89,6 +90,14 @@ export interface AppState {
   triggerCrisis: (reason: string) => void;
   dismissCrisis: () => void;
 
+  // Minors off-boarding (§5.6) — transient
+  minorsOffboardActive: boolean;
+  triggerMinorsOffboard: (evidence: string) => void;
+  dismissMinorsOffboard: () => void;
+
+  // Private journal (§8.1) — client-side encrypted, NOT in this store's persistence
+  // (held in component state only — simulated as device-held)
+
   // Mood log (Tier 1)
   moods: MoodEntry[];
   addMood: (m: Omit<MoodEntry, "id" | "ts">) => void;
@@ -137,6 +146,10 @@ export const useAppStore = create<AppState>()(
       crisisReason: null,
       triggerCrisis: (reason) => set({ crisisActive: true, crisisReason: reason }),
       dismissCrisis: () => set({ crisisActive: false, crisisReason: null }),
+
+      minorsOffboardActive: false,
+      triggerMinorsOffboard: () => set({ minorsOffboardActive: true }),
+      dismissMinorsOffboard: () => set({ minorsOffboardActive: false }),
 
       moods: [],
       addMood: (m) =>

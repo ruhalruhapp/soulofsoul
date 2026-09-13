@@ -5,6 +5,7 @@ import { ThemeDirector } from "@/components/shell/ThemeDirector";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { CrisisBar } from "@/components/shell/CrisisBar";
 import { CrisisOverlay } from "@/components/shell/CrisisOverlay";
+import { MinorsOffboardOverlay } from "@/components/shell/MinorsOffboardOverlay";
 import { OnboardingGate } from "@/components/shell/OnboardingGate";
 import { HomeSection } from "@/components/sections/HomeSection";
 import { CompanionSection } from "@/components/sections/CompanionSection";
@@ -13,6 +14,7 @@ import { PeerSection } from "@/components/sections/PeerSection";
 import { TelehealthSection } from "@/components/sections/TelehealthSection";
 import { CopilotSection } from "@/components/sections/CopilotSection";
 import { SupervisorSection } from "@/components/sections/SupervisorSection";
+import { SafetySection } from "@/components/sections/SafetySection";
 import { SettingsSection } from "@/components/sections/SettingsSection";
 
 export default function Home() {
@@ -23,6 +25,7 @@ export default function Home() {
       <ThemeDirector />
       <OnboardingGate />
       <CrisisOverlay />
+      <MinorsOffboardOverlay />
 
       <div className="min-h-screen flex flex-col">
         {/* Crisis bar always on top — §5.2 step 3 / NG6 */}
@@ -40,6 +43,7 @@ export default function Home() {
               {section === "telehealth" && <TelehealthSection />}
               {section === "copilot" && <CopilotSection />}
               {section === "supervisor" && <SupervisorSection />}
+              {section === "safety" && <SafetySection />}
               {section === "settings" && <SettingsSection />}
             </div>
           </main>
