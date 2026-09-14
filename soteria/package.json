@@ -1,0 +1,18 @@
+{
+  "name": "soteria-dialogue",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "bun test",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.0",
+    "prisma": "^6.11.0"
+  }
+}

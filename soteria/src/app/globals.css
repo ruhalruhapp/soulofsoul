@@ -1,0 +1,175 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-presence: var(--presence);
+  --color-presence-glow: var(--presence-glow);
+  --color-tension-low: var(--tension-low);
+  --color-tension-mid: var(--tension-mid);
+  --color-tension-high: var(--tension-high);
+  --radius: 0.5rem;
+}
+
+/*
+ * SOTERIA THEME — "Low-Stimulation Milieu"
+ *
+ * Design principles per Ciompi's Affect-Logic:
+ * - Dark mode is the DEFAULT (not an option) — reduces visual stimulation
+ * - Colors are desaturated, warm-tinted (not cold blue)
+ * - Contrast is soft, not stark
+ * - No pure black or pure white (causes eye strain)
+ * - Typography is generous, never cramped
+ * - Borders are subtle, not heavy
+ * - The UI should feel like a dim room with warm light, not a screen
+ */
+
+/* Dark mode is the default — the :root IS the dark theme */
+:root {
+  /* Warm dark background — not pure black, slightly warm to reduce eye strain */
+  --background: oklch(0.16 0.008 75);
+  --foreground: oklch(0.92 0.005 75);
+
+  --card: oklch(0.19 0.008 75);
+  --card-foreground: oklch(0.92 0.005 75);
+
+  /* Primary: soft warm amber — the "candle" color, evoking a safe room */
+  --primary: oklch(0.72 0.06 65);
+  --primary-foreground: oklch(0.16 0.008 75);
+
+  --secondary: oklch(0.24 0.006 75);
+  --secondary-foreground: oklch(0.92 0.005 75);
+
+  --muted: oklch(0.22 0.006 75);
+  --muted-foreground: oklch(0.62 0.01 75);
+
+  --accent: oklch(0.28 0.01 75);
+  --accent-foreground: oklch(0.92 0.005 75);
+
+  /* Destructive: muted, not screaming red — reduces alarm */
+  --destructive: oklch(0.55 0.12 25);
+
+  --border: oklch(0.26 0.006 75);
+  --ring: oklch(0.55 0.04 65);
+
+  /* Presence: the "breathing" glow of the Open Window */
+  --presence: oklch(0.68 0.08 65);
+  --presence-glow: oklch(0.72 0.06 65 / 0.15);
+
+  /* Affect-Logic tension scale — warm to cool, not green to red */
+  --tension-low: oklch(0.60 0.05 160);    /* calm — soft teal-green */
+  --tension-mid: oklch(0.68 0.06 65);     /* neutral — warm amber */
+  --tension-high: oklch(0.58 0.08 25);    /* elevated — muted terracotta */
+}
+
+/* Light mode (opt-in only — most users stay in dark) */
+.light {
+  --background: oklch(0.97 0.004 75);
+  --foreground: oklch(0.20 0.006 75);
+  --card: oklch(0.99 0.002 75);
+  --card-foreground: oklch(0.20 0.006 75);
+  --primary: oklch(0.55 0.06 65);
+  --primary-foreground: oklch(0.97 0.004 75);
+  --secondary: oklch(0.94 0.004 75);
+  --secondary-foreground: oklch(0.20 0.006 75);
+  --muted: oklch(0.95 0.003 75);
+  --muted-foreground: oklch(0.50 0.01 75);
+  --accent: oklch(0.92 0.005 75);
+  --accent-foreground: oklch(0.20 0.006 75);
+  --destructive: oklch(0.50 0.12 25);
+  --border: oklch(0.90 0.004 75);
+  --ring: oklch(0.55 0.06 65);
+  --presence: oklch(0.55 0.06 65);
+  --presence-glow: oklch(0.55 0.06 65 / 0.10);
+  --tension-low: oklch(0.50 0.05 160);
+  --tension-mid: oklch(0.55 0.06 65);
+  --tension-high: oklch(0.50 0.08 25);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Reduce visual noise — no text selection highlight flash */
+    -webkit-tap-highlight-color: transparent;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ─── Soteria-specific animations ─── */
+
+/* The "breathing" presence indicator — slow, organic, not mechanical */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+.breathe-anim {
+  animation: breathe 8s ease-in-out infinite;
+}
+
+/* Slow fade — never jarring transitions */
+@keyframes soft-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.soft-fade {
+  animation: soft-fade 1.2s ease-in;
+}
+
+/* The Open Window glow — a gentle pulse, like a candle */
+@keyframes window-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--presence-glow), 0 0 40px var(--presence-glow);
+  }
+  50% {
+    box-shadow: 0 0 30px var(--presence-glow), 0 0 60px var(--presence-glow);
+  }
+}
+.window-glow {
+  animation: window-glow 6s ease-in-out infinite;
+}
+
+/* Tension indicator — color shifts smoothly, never abruptly */
+.tension-bar {
+  transition: background-color 4s ease-in-out;
+}
+
+/* ─── Accessibility: reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .breathe-anim,
+  .window-glow,
+  .soft-fade {
+    animation: none;
+  }
+}
+
+/* ─── Minimal notification density ─── */
+/* No toast stacks, no badge counts, no pulsing dots */
+/* The platform should never demand attention — it offers presence */

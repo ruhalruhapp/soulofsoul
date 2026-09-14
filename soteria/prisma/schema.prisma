@@ -1,0 +1,326 @@
+// Soteria-Dialogue — Prisma schema
+// Digital-first crisis platform built on Soteria + Open Dialogue principles.
+//
+// Data domains (per the philosophy, NOT per HIPAA — this is a different paradigm):
+// - Presence: co-presence sessions (no transcripts, no recordings, no classifier)
+// - Affect: self-reported affective tension (user-owned, correctable)
+// - Dialogue: Trialogue records (polyphonic — multiple perspectives preserved)
+// - Workbook: co-authored crisis narrative (user has final edit authority)
+// - Continuity: facilitator pair assignments (same team across all touchpoints)
+// - Directive: advance directives (user pre-authorizes specific intervention situations)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Roles ───
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String?
+  role          UserRole @default(USER)
+  ageVerified   Boolean  @default(false)
+  birthYear     Int?
+  // The user's chosen display name in the platform (may differ from legal name)
+  displayName   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  member        Member?
+  companion     PeerCompanion?
+  clinician     Clinician?
+  facilitator   Facilitator?
+  presenceSessions PresenceSession[]
+  affectSamples AffectSample[]
+  trialogueRecords TrialogueRecord[]
+  workbookEntries WorkbookEntry[]
+  advanceDirective AdvanceDirective?
+  continuityAssignments ContinuityAssignment[]
+}
+
+enum UserRole {
+  USER              // person in crisis or seeking support
+  PEER_COMPANION    // trained peer specialist (60% of staffing)
+  CLINICIAN         // licensed clinician (40% of staffing)
+  FACILITATOR       // facilitator pair member (peer or clinician)
+  ADMIN
+}
+
+// ─── Member profile ───
+
+model Member {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Language preference
+  language        String   @default("en")
+  // The user's social network contacts (for Trialogue inclusion)
+  networkContacts String?  // JSON-encoded array of {name, relationship, contact}
+  // Continuity: who is assigned to this person
+  facilitatorPairId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Staff profiles ───
+
+model PeerCompanion {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  // Training credentials
+  trainingCompleted String? // JSON-encoded array of training certifications
+  yearsExperience Int?
+  // Availability
+  availableForWindow Boolean @default(true)
+  availableForTrialogue Boolean @default(true)
+  createdAt     DateTime @default(now())
+}
+
+model Clinician {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  credentials   String   // e.g., "MD, Psychiatrist" or "LCSW"
+  licenseStates String?  // JSON-encoded array
+  createdAt     DateTime @default(now())
+}
+
+model Facilitator {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String   // "peer" | "clinician"
+  // Back-relations for pair membership (a facilitator is in at most one pair)
+  pairAsPeer       FacilitatorPair? @relation("peerInPair")
+  pairAsClinician  FacilitatorPair? @relation("clinicianInPair")
+  createdAt     DateTime @default(now())
+}
+
+// A facilitator pair = 1 peer specialist + 1 clinician
+// This is the "Trialogue pair" that provides psychological continuity
+model FacilitatorPair {
+  id            String   @id @default(cuid())
+  peerFacilitatorId   String   @unique
+  clinicianFacilitatorId String @unique
+  createdAt     DateTime @default(now())
+  peer          Facilitator @relation("peerInPair", fields: [peerFacilitatorId], references: [id])
+  clinician     Facilitator @relation("clinicianInPair", fields: [clinicianFacilitatorId], references: [id])
+}
+
+// ─── Primitive 1: The Open Window (co-presence) ───
+// NO transcript. NO recording. NO classifier. Just presence.
+
+model PresenceSession {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companionId   String?  // peer companion on the other side of the window
+  // Session state
+  status        String   @default("open") // "open" | "closed"
+  startedAt    DateTime @default(now())
+  endedAt      DateTime?
+  // Per the philosophy: we do NOT record content. We log ONLY:
+  // - that a session happened
+  // - how long it lasted
+  // - who was present
+  // No transcript. No audio recording. No classifier output.
+  durationSeconds Int?
+  // The user's self-reported affect before and after (for Affect-Logic, not surveillance)
+  affectBefore Int?  // 1-10 self-reported tension
+  affectAfter  Int?  // 1-10 self-reported tension
+
+  @@index([userId, startedAt])
+}
+
+// ─── Primitive 2: The Affect-Logic Engine ───
+// Affective tension is the primary state variable — NOT symptoms, NOT diagnosis.
+// All samples are self-reported (user-owned) or behavioral (timing-only, never content).
+
+model AffectSample {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The affective tension level (1-10, self-reported)
+  tension       Int      // 1 = calm, 10 = overwhelmed
+  // Source: "self-report" (1-tap check-in) or "behavioral" (typing cadence, etc.)
+  source        String   @default("self-report")
+  // Optional note (user can add context if they want — never required)
+  note          String?
+  // What the environment did in response (transparency — user sees what the system did)
+  environmentResponse String? // e.g., "dimmed_ui", "silenced_notifications", "widened_window"
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── Primitive 3: The Trialogue (polyphonic record) ───
+// Multiple perspectives preserved as multiple perspectives — NOT synthesized into one diagnosis.
+
+model TrialogueRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The Trialogue participants
+  participantPerspectives String // JSON array of {participant, role, perspective}
+  // Per polyphony: each perspective is recorded separately, NOT merged
+  // e.g., [{participant: "user", perspective: "I'm hearing voices"},
+  //        {participant: "mother", perspective: "she's always been dramatic"},
+  //        {participant: "clinician", perspective: "this could be psychosis"}]
+  // All three are valid data. The system does NOT pick a winner.
+  // Session metadata
+  facilitatorPairId String?
+  startedAt    DateTime @default(now())
+  endedAt      DateTime?
+  // The shared workbook entry this Trialogue contributed to
+  workbookEntryId String?
+
+  @@index([userId, startedAt])
+}
+
+// ─── Primitive 4: Bola & Mosher Triage Algorithm ───
+// Predicts probability of drug-free response (NOT risk assessment).
+// 79% accuracy (95% CI: 65-90%) per Bola & Mosher (2002).
+
+model TriageAssessment {
+  id            String   @id @default(cuid())
+  userId        String
+  // Gate 1: Age at onset
+  ageAtOnset    Int
+  // Gate 2: Goldstein Adolescent Social Competence Scale (15 items, 0-30)
+  goldsteinScore Int
+  // Gate 3: Symptom count (cardinal diagnostic symptoms)
+  symptomCount  Int
+  // Computed: probability of drug-free response (0-1)
+  responderProbability Float
+  // The recommendation (NOT a diagnosis — a care pathway suggestion)
+  recommendation String  // "digital_respite" | "social_network_mobilization" | "physical_micro_house"
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── Primitive 5: Continuity Coordinator ───
+// The same facilitator pair stays assigned across ALL touchpoints.
+// No hand-offs without explicit transfer ceremony.
+
+model ContinuityAssignment {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  facilitatorPairId String?
+  // The touchpoint where this assignment started
+  startTouchpoint String // "digital_safe_room" | "trialogue" | "physical_micro_house" | "aftercare"
+  // If a transfer happened, log it (with reason and ceremony)
+  transferredFrom String? // previous facilitatorPairId
+  transferReason String?  // e.g., "facilitator unavailable", "user request"
+  transferCeremony Boolean @default(false) // was a proper introduction made?
+  status        String   @default("active") // "active" | "transferred" | "ended"
+  assignedAt    DateTime @default(now())
+  endedAt      DateTime?
+
+  @@index([userId, status])
+}
+
+// ─── Primitive 6: Non-Coercion as Architecture ───
+// Advance directive: user pre-authorizes SPECIFIC intervention situations.
+// The platform CANNOT trigger involuntary intervention outside these pre-authorized situations.
+
+model AdvanceDirective {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Has the user authorized ANY involuntary intervention?
+  anyInterventionAuthorized Boolean @default(false)
+  // Specific situations the user has pre-authorized (all default to false)
+  authorizeCrisisLine      Boolean @default(false) // platform may surface 988
+  authorizeEmergencyServices Boolean @default(false) // platform may call 911
+  authorizeNotificationOfNetwork Boolean @default(false) // platform may notify family/friends
+  authorizePhysicalTransition Boolean @default(false) // platform may recommend micro-house
+  // The user's stated preferences (free text — their words, not our categories)
+  preferences  String? // user's own description of what helps, what doesn't
+  // Version (for updates — directive evolves over time)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── Primitive 7: Transition Logic ───
+// 48-hour digital→physical decision tree (coordination layer only).
+
+model TransitionAssessment {
+  id            String   @id @default(cuid())
+  userId        String
+  // Hours since digital safe room entry
+  hoursInDigitalRespite Float
+  // Affect-regulation threshold met?
+  affectRegulationMet Boolean @default(false)
+  // Social network capacity exhausted?
+  networkCapacityExhausted Boolean @default(false)
+  // Decision
+  decision      String   // "continue_digital" | "transition_to_physical" | "extend_digital"
+  decisionRationale String?
+  // If transition: which micro-house (coordination layer — no physical management yet)
+  microHouseId  String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── Primitive 8: The Shared Workbook ───
+// Co-authored crisis narrative. User has FINAL EDIT AUTHORITY.
+// Not a clinical chart — a living document the user controls.
+
+model WorkbookEntry {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Entry type
+  type          String   // "feeling" | "coping_plan" | "crisis_preference" | "goal" | "trialogue_note" | "network_contact" | "reflection"
+  // The content (co-authored, but user has final edit)
+  content       String
+  // Who authored this entry (for polyphony — multiple authors preserved)
+  authoredBy    String   // "user" | "peer_companion" | "clinician" | "family_member"
+  authorName    String?  // display name of the author
+  // Can the user edit this? (User always can; others can annotate but not overwrite)
+  userEditable  Boolean  @default(true)
+  // Versioning (for edit history)
+  version       Int      @default(1)
+  previousVersion String? // ID of previous version if edited
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, type, createdAt])
+}
+
+// ─── Safe Room sessions (digital) ───
+
+model SafeRoomSession {
+  id            String   @id @default(cuid())
+  userId        String
+  // The user's affective state when they entered
+  entryTension  Int      // 1-10
+  // What happened during the session (presence sessions, trialogues, workbook entries)
+  presenceSessionIds String // JSON array
+  trialogueIds  String? // JSON array
+  // Exit state
+  exitTension   Int? // 1-10
+  exitedAt     DateTime?
+  // Transition assessment result
+  transitionDecision String? // "continue_digital" | "transition_to_physical"
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
