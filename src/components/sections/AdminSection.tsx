@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ENTERPRISE_CONTRACTS,
   COHORT_METRICS,
   SLA_TARGETS,
   ERISA_GUARDRAILS,
   type EnterpriseContract,
   type CohortMetric,
 } from "@/lib/data";
+import { fetchEnterpriseContracts } from "@/lib/convex-api";
 import {
   Building2,
   Users,
@@ -40,7 +40,56 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export function AdminSection() {
-  const [selectedContract, setSelectedContract] = useState<EnterpriseContract>(ENTERPRISE_CONTRACTS[0]);
+  const [contracts, setContracts] = useState<EnterpriseContract[]>([]);
+  const [selectedContract, setSelectedContract] = useState<EnterpriseContract | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real enterprise contracts from Convex
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchEnterpriseContracts();
+        // Map Convex data to EnterpriseContract format
+        const mapped: EnterpriseContract[] = data.map((c: Record<string, unknown>, i: number) => ({
+          id: (c._id as string) || `convex-${i}`,
+          name: c.name as string,
+          type: c.type as EnterpriseContract["type"],
+          members: c.members as number,
+          cohortSize: c.members as number,
+          monthlyActiveRate: 34.2, // Would come from real telemetry
+          tier4UtilizationRate: 8.1,
+          status: c.status as EnterpriseContract["status"],
+          renewalDate: c.renewalDate ? new Date(c.renewalDate as number).toISOString().split("T")[0] : "2027-03-15",
+          slaUptime: c.slaUptime as number,
+          crisisPipelineAvailability: c.crisisPipelineAvailability as number,
+        }));
+        setContracts(mapped);
+        if (mapped.length > 0) setSelectedContract(mapped[0]);
+      } catch (err) {
+        console.error("[admin] failed to fetch contracts:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading || !selectedContract) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+            Enterprise Admin
+            <Badge variant="outline" className="text-xs">§10.2</Badge>
+          </h1>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Loading enterprise contracts from Convex...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -59,7 +108,7 @@ export function AdminSection() {
         <Select
           value={selectedContract.id}
           onValueChange={(v) => {
-            const c = ENTERPRISE_CONTRACTS.find((x) => x.id === v);
+            const c = contracts.find((x) => x.id === v);
             if (c) {
               setSelectedContract(c);
               toast.info(`Switched to ${c.name}`);
@@ -71,7 +120,7 @@ export function AdminSection() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ENTERPRISE_CONTRACTS.map((c) => (
+            {contracts.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
               </SelectItem>
@@ -239,7 +288,7 @@ export function AdminSection() {
             All contracts
           </CardTitle>
           <CardDescription className="text-xs">
-            {ENTERPRISE_CONTRACTS.length} active contracts across employers, universities, and
+            {contracts.length} active contracts across employers, universities, and
             municipal systems.
           </CardDescription>
         </CardHeader>
@@ -257,7 +306,7 @@ export function AdminSection() {
                 </tr>
               </thead>
               <tbody>
-                {ENTERPRISE_CONTRACTS.map((c) => (
+                {contracts.map((c) => (
                   <tr
                     key={c.id}
                     className={cn(

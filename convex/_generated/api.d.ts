@@ -1,51 +1,32 @@
-/* eslint-disable */
 /**
- * Generated `api` utility.
- *
- * THIS CODE IS AUTOMATICALLY GENERATED.
- *
- * To regenerate, run `npx convex dev`.
- * @module
+ * Minimal Convex API reference — allows useQuery/useMutation without generated types.
+ * In production with `npx convex dev` authenticated, this file is auto-generated.
+ * Here we provide a manual version that works with the deployed functions.
  */
 
-import type * as mutations from "../mutations.js";
-import type * as queries from "../queries.js";
-
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
-
-declare const fullApi: ApiFromModules<{
-  mutations: typeof mutations;
-  queries: typeof queries;
-}>;
-
-/**
- * A utility for referencing Convex functions in your app's public API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
-export declare const api: FilterApi<
-  typeof fullApi,
-  FunctionReference<any, "public">
->;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
-export declare const internal: FilterApi<
-  typeof fullApi,
-  FunctionReference<any, "internal">
->;
-
-export declare const components: {};
+export const api = {
+  queries: {
+    getCrisisQueue: "queries:getCrisisQueue",
+    getTelemetryAggregates: "queries:getTelemetryAggregates",
+    getChatMessages: "queries:getChatMessages",
+    getMemoryEntries: "queries:getMemoryEntries",
+    getPeerPosts: "queries:getPeerPosts",
+    getUserByEmail: "queries:getUserByEmail",
+    getEnterpriseContracts: "queries:getEnterpriseContracts",
+    healthCheck: "queries:healthCheck",
+  },
+  mutations: {
+    createUser: "mutations:createUser",
+    createSession: "mutations:createSession",
+    createCrisisEvent: "mutations:createCrisisEvent",
+    updateCrisisDisposition: "mutations:updateCrisisDisposition",
+    addTelemetryEvents: "mutations:addTelemetryEvents",
+    createPeerPost: "mutations:createPeerPost",
+    addChatMessage: "mutations:addChatMessage",
+    addMemoryEntry: "mutations:addMemoryEntry",
+    deleteMemoryEntry: "mutations:deleteMemoryEntry",
+    recordConsent: "mutations:recordConsent",
+    createEnterpriseContract: "mutations:createEnterpriseContract",
+    seedDemoData: "mutations:seedDemoData",
+  },
+} as const;

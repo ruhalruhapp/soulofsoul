@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { useAppStore, type Section } from "@/lib/store";
 import { tr } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ import {
   Sun,
   Menu,
   Activity,
+  LogOut,
 } from "lucide-react";
 
 interface NavItem {
@@ -63,6 +65,7 @@ export function Sidebar() {
   const toggleTheme = useAppStore((s) => s.toggleTheme);
   const lang = useAppStore((s) => s.lang);
   const tier = useAppStore((s) => s.tier);
+  const { data: session } = useSession();
 
   return (
     <>
@@ -111,6 +114,23 @@ export function Sidebar() {
         </nav>
 
         <div className="border-t p-3 space-y-2">
+          {session?.user && (
+            <div className="flex items-center justify-between text-xs px-2 pb-2 border-b">
+              <div className="min-w-0">
+                <div className="font-medium truncate">{session.user.name || session.user.email}</div>
+                <div className="text-[10px] text-muted-foreground uppercase">{(session.user as { role?: string }).role || "MEMBER"}</div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0"
+                onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                aria-label="Sign out"
+              >
+                <LogOut className="size-3.5" />
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between text-xs px-2">
             <span className="text-muted-foreground">Tier</span>
             <span className="font-medium">Tier {tier}</span>

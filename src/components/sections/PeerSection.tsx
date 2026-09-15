@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { PEER_POSTS, type PeerPost } from "@/lib/data";
+import { type PeerPost } from "@/lib/data";
+import { fetchPeerPosts, createPeerPost } from "@/lib/convex-api";
 import {
   Heart,
   MessageCircle,
@@ -22,25 +23,64 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function PeerSection() {
-  const [posts, setPosts] = useState<PeerPost[]>(PEER_POSTS);
+  const [posts, setPosts] = useState<PeerPost[]>([]);
   const [compose, setCompose] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const post = () => {
+  // Fetch real peer posts from Convex
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchPeerPosts();
+        const mapped: PeerPost[] = data.map((p: Record<string, unknown>) => ({
+          id: p._id as string,
+          author: "Community Member",
+          avatar: "M",
+          ts: new Date(p._creationTime as number).toLocaleString([], { hour: "2-digit", minute: "2-digit" }),
+          content: p.content as string,
+          tags: JSON.parse((p.tags as string) || "[]"),
+          aiFlag: p.aiFlag as PeerPost["aiFlag"],
+          moderatorAction: p.moderatorAction as string | undefined,
+          replies: p.replies as number,
+          hearts: p.hearts as number,
+        }));
+        setPosts(mapped);
+      } catch (err) {
+        console.error("[peer] failed to fetch posts:", err);
+        // Fallback to empty — no mock data
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const post = async () => {
     if (!compose.trim()) return;
-    const newPost: PeerPost = {
-      id: crypto.randomUUID(),
-      author: "You",
-      avatar: "Y",
-      ts: "just now",
-      content: compose,
-      tags: ["new"],
-      aiFlag: "review", // §3.2: AI pre-filters reports
-      replies: 0,
-      hearts: 0,
-    };
-    setPosts((p) => [newPost, ...p]);
-    setCompose("");
-    toast.success("Posted. A moderator will review within 15 min (p95).");
+    try {
+      // In production, authorId would come from the session
+      await createPeerPost({
+        authorId: "demo-member",
+        content: compose,
+        tags: JSON.stringify(["new"]),
+        aiFlag: "review", // §3.2: AI pre-filters reports
+      });
+      const newPost: PeerPost = {
+        id: crypto.randomUUID(),
+        author: "You",
+        avatar: "Y",
+        ts: "just now",
+        content: compose,
+        tags: ["new"],
+        aiFlag: "review",
+        replies: 0,
+        hearts: 0,
+      };
+      setPosts((prev) => [newPost, ...prev]);
+      setCompose("");
+      toast.success("Posted to Convex. A moderator will review within 15 min (p95).");
+    } catch {
+      toast.error("Failed to post — please try again.");
+    }
   };
 
   return (
@@ -92,6 +132,20 @@ export function PeerSection() {
 
       {/* Posts */}
       <div className="space-y-3">
+        {loading && (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              Loading peer posts from Convex...
+            </CardContent>
+          </Card>
+        )}
+        {!loading && posts.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              No posts yet. Be the first to share.
+            </CardContent>
+          </Card>
+        )}
         {posts.map((p) => (
           <PostCard key={p.id} post={p} onHeart={() => {
             setPosts((prev) => prev.map((x) => x.id === p.id ? { ...x, hearts: x.hearts + 1 } : x));

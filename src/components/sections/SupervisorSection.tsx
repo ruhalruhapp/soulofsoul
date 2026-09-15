@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { io, Socket } from "socket.io-client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { KPIS, CRISIS_QUEUE, type CrisisEvent } from "@/lib/data";
+import { KPIS, type CrisisEvent } from "@/lib/data";
+import { fetchCrisisQueue, updateCrisisDisposition } from "@/lib/convex-api";
 import { cn } from "@/lib/utils";
 import {
   ShieldAlert,
@@ -21,83 +21,68 @@ import {
   Filter,
   RefreshCw,
   Users,
-  Zap,
   Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 
 export function SupervisorSection() {
-  // Start with seed data, then merge in live events from the WebSocket mini-service.
-  const [queue, setQueue] = useState<CrisisEvent[]>(CRISIS_QUEUE);
+  // Real-time crisis queue from Convex (polls every 5 seconds)
+  const [queue, setQueue] = useState<CrisisEvent[]>([]);
   const [filter, setFilter] = useState<"all" | "pending" | "active">("all");
   const [liveConnected, setLiveConnected] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Connect to crisis-relay WebSocket mini-service (port 3030 via Caddy gateway)
-  useEffect(() => {
-    const socket = io("/?XTransformPort=3030", {
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionDelay: 2000,
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
+  // Fetch crisis queue from Convex
+  const refreshQueue = async () => {
+    try {
+      const events = await fetchCrisisQueue();
+      // Map Convex events to CrisisEvent format
+      const mapped: CrisisEvent[] = events.map((e: Record<string, unknown>) => ({
+        id: e._id as string,
+        ts: new Date(e._creationTime as number).toLocaleTimeString(),
+        user: e.deidentifiedId as string,
+        reason: e.reason as string,
+        language: e.language as string,
+        channel: e.channel as "text" | "voice",
+        status: e.status as "pending" | "reviewing" | "outreached" | "closed",
+        slaRemainingSec: Math.max(0, Math.floor(((e.slaDeadline as number) - Date.now()) / 1000)),
+        disposition: e.disposition as string | undefined,
+      }));
+      setQueue(mapped);
       setLiveConnected(true);
-      toast.success("Live crisis feed connected — events stream in real-time.");
-    });
-
-    socket.on("disconnect", () => {
+      setLoading(false);
+    } catch (err) {
+      console.error("[supervisor] failed to fetch crisis queue:", err);
       setLiveConnected(false);
-    });
+      setLoading(false);
+    }
+  };
 
-    socket.on("crisis:queue", (initialQueue: CrisisEvent[]) => {
-      // Merge live queue with seed demo data — dedupe by id, live takes precedence
-      setQueue((prev) => {
-        const liveIds = new Set(initialQueue.map((e) => e.id));
-        const seed = prev.filter((e) => !liveIds.has(e.id));
-        return [...initialQueue, ...seed];
-      });
-    });
-
-    socket.on("crisis:event", (event: CrisisEvent) => {
-      setQueue((prev) => [event, ...prev].slice(0, 12));
-      toast.error(`New crisis event: ${event.reason}`, {
-        description: `${event.user} · ${event.channel} · language: ${event.language}`,
-      });
-    });
-
-    socket.on("crisis:tick", (updates: Array<{ id: string; slaRemainingSec: number }>) => {
-      setQueue((prev) =>
-        prev.map((e) => {
-          const update = updates.find((u) => u.id === e.id);
-          return update ? { ...e, slaRemainingSec: update.slaRemainingSec } : e;
-        })
-      );
-    });
-
-    socket.on("crisis:update", (updated: CrisisEvent) => {
-      setQueue((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-    });
-
+  // Poll Convex every 5 seconds for real-time updates
+  useEffect(() => {
+    refreshQueue();
+    timerRef.current = setInterval(refreshQueue, 5000);
     return () => {
-      socket.disconnect();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
-  // Local SLA countdown fallback (in case WebSocket drops)
-  useEffect(() => {
-    const t = setInterval(() => {
-      setQueue((prev) =>
-        prev.map((e) =>
-          e.status === "pending" && e.slaRemainingSec > 0 && !liveConnected
-            ? { ...e, slaRemainingSec: e.slaRemainingSec - 1 }
-            : e
-        )
-      );
-    }, 1000);
-    return () => clearInterval(t);
-  }, [liveConnected]);
+  const setDisposition = async (id: string, status: CrisisEvent["status"], disposition: string) => {
+    setQueue((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, status, disposition, slaRemainingSec: 0 } : e))
+    );
+    try {
+      await updateCrisisDisposition({
+        eventId: id,
+        status,
+        disposition,
+      });
+      toast.success("Disposition logged to Convex. Per §5.2 step 5, all dispositions are recorded for QA.");
+    } catch {
+      toast.error("Failed to sync disposition to Convex — will retry on next poll.");
+    }
+  };
 
   const filtered = queue.filter((e) => {
     if (filter === "pending") return e.status === "pending";
@@ -106,19 +91,10 @@ export function SupervisorSection() {
   });
 
   const pending = queue.filter((e) => e.status === "pending").length;
-  const reviewing = queue.filter((e) => e.status === "reviewing").length;
+  const reviewingCount = queue.filter((e) => e.status === "reviewing").length;
   const breached = queue.filter(
     (e) => (e.status === "pending" || e.status === "reviewing") && e.slaRemainingSec === 0
   ).length;
-
-  const setDisposition = (id: string, status: CrisisEvent["status"], disposition: string) => {
-    setQueue((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status, disposition, slaRemainingSec: 0 } : e))
-    );
-    // Push to WebSocket service so other supervisor consoles see the update
-    socketRef.current?.emit("crisis:disposition", { id, status, disposition });
-    toast.success("Disposition logged. Per §5.2 step 5, all dispositions are recorded for QA.");
-  };
 
   return (
     <div className="space-y-4">
@@ -165,7 +141,7 @@ export function SupervisorSection() {
       {/* Top stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <StatBox icon={ShieldAlert} label="Pending review" value={pending} sub="SLA: ≤5 min for imminent risk" status={pending > 0 ? "watch" : "ok"} />
-        <StatBox icon={Eye} label="In review" value={reviewing} sub="Being triaged" />
+        <StatBox icon={Eye} label="In review" value={reviewingCount} sub="Being triaged" />
         <StatBox icon={Clock} label="SLA breaches (24h)" value={breached} sub="p95 ≤ 5 min" status={breached > 0 ? "breach" : "ok"} />
         <StatBox icon={Users} label="Supervisors on-call" value={3} sub="24/7 coverage" />
       </div>

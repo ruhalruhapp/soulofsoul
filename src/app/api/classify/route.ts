@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
+import { getZAI } from "@/lib/zai";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ClassifyRespo
       });
     }
 
-    const zai = await ZAI.create();
+    const zai = await getZAI();
     const completion = await zai.chat.completions.create({
       messages: [
         { role: "assistant", content: SYSTEM_PROMPT },
