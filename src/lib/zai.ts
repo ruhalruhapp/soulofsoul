@@ -26,7 +26,8 @@ export async function getZAI() {
   const envBaseUrl = process.env.ZAI_BASE_URL;
 
   if (envApiKey && envBaseUrl) {
-    // Write a temporary config file that the SDK can read
+    // Write a config file that the SDK can read.
+    // Use /tmp on Render (read-only filesystem elsewhere)
     const config = {
       apiKey: envApiKey,
       baseUrl: envBaseUrl,
@@ -35,13 +36,22 @@ export async function getZAI() {
       userId: process.env.ZAI_USER_ID || "",
     };
 
-    // Write to a temp file the SDK will find
-    const configPath = path.join(process.cwd(), ".z-ai-config");
-    try {
-      fs.writeFileSync(configPath, JSON.stringify(config));
-    } catch {
-      // If we can't write (read-only filesystem), the SDK may still work
-      // if we set the config via the ZAI.create options
+    // Try multiple writable locations
+    const possiblePaths = [
+      "/tmp/.z-ai-config",
+      path.join(process.cwd(), ".z-ai-config"),
+      path.join(require("os").tmpdir(), ".z-ai-config"),
+    ];
+
+    for (const configPath of possiblePaths) {
+      try {
+        fs.writeFileSync(configPath, JSON.stringify(config));
+        // Also set as env var that the SDK might check
+        process.env.ZAI_CONFIG_PATH = configPath;
+        break;
+      } catch {
+        // Try next path
+      }
     }
   }
 
