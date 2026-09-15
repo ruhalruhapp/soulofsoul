@@ -13,13 +13,13 @@ export const getCrisisQueue = query({
   handler: async (ctx) => {
     const pending = await ctx.db
       .query("crisisEvents")
-      .withIndex("by_status_createdAt", (q) => q.eq("status", "pending"))
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
       .order("desc")
       .take(20);
 
     const reviewing = await ctx.db
       .query("crisisEvents")
-      .withIndex("by_status_createdAt", (q) => q.eq("status", "reviewing"))
+      .withIndex("by_status", (q) => q.eq("status", "reviewing"))
       .order("desc")
       .take(20);
 

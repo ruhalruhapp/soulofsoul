@@ -88,14 +88,6 @@ export default defineSchema({
     flagReason: v.optional(v.string()),
     viaVoice: v.boolean(),
     anchored: v.boolean(),
-  }).index("by_userId_createdAt", ["userId", "_creationTime"]),
-
-  memoryEntries: defineTable({
-    userId: v.string(),
-    text: v.string(),
-    category: v.string(),
-    pendingDeletion: v.boolean(),
-    deletedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
   moodEntries: defineTable({
@@ -103,7 +95,7 @@ export default defineSchema({
     score: v.number(),
     note: v.optional(v.string()),
     tags: v.string(), // JSON
-  }).index("by_userId_createdAt", ["userId", "_creationTime"]),
+  }).index("by_userId", ["userId"]),
 
   assessmentResults: defineTable({
     userId: v.string(),
@@ -123,7 +115,7 @@ export default defineSchema({
     hearts: v.number(),
     replies: v.number(),
     deletedAt: v.optional(v.number()),
-  }).index("by_createdAt", ["_creationTime"]).index("by_aiFlag", ["aiFlag"]),
+  }).index("by_authorId", ["authorId"]).index("by_aiFlag", ["aiFlag"]),
 
   // ─── Domain B: Tier 4 clinical ───
 
@@ -137,7 +129,7 @@ export default defineSchema({
     clinicianConsented: v.boolean(),
     copayAmount: v.optional(v.number()),
     payerClaimId: v.optional(v.string()),
-  }).index("by_clinicianId_scheduledAt", ["clinicianId", "scheduledAt"]),
+  }).index("by_status", ["status"]).index("by_clinicianId", ["clinicianId"]),
 
   smartNotes: defineTable({
     appointmentId: v.string(),
@@ -166,7 +158,7 @@ export default defineSchema({
     reviewedAt: v.optional(v.number()),
     disposition: v.optional(v.string()),
     reviewedBy: v.optional(v.string()),
-  }).index("by_status_createdAt", ["status", "_creationTime"]),
+  }).index("by_status", ["status"]),
 
   // ─── Consent records (§8.3) ───
 

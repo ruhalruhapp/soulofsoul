@@ -1,6 +1,9 @@
 /**
  * Convex mutations for soulofsoul.
  * These replace the Prisma API routes — they run on Convex's servers.
+ *
+ * Note: Convex mutations can't use setTimeout (which bcryptjs.hash uses internally).
+ * For password hashing, we use bcryptjs.hashSync instead, or pre-hash on the client.
  */
 
 import { mutation } from "./_generated/server";
@@ -12,7 +15,7 @@ import bcrypt from "bcryptjs";
 export const createUser = mutation({
   args: {
     email: v.string(),
-    passwordHash: v.string(),
+    passwordHash: v.string(), // pre-hashed by the API route
     name: v.optional(v.string()),
     role: v.string(),
     ageVerified: v.boolean(),
@@ -20,7 +23,6 @@ export const createUser = mutation({
     tier: v.number(),
   },
   handler: async (ctx, args) => {
-    // Check if user already exists
     const existing = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase()))
@@ -40,7 +42,6 @@ export const createUser = mutation({
       tier: args.tier,
     });
 
-    // Create member profile
     await ctx.db.insert("members", {
       userId,
       language: "en",
@@ -50,7 +51,6 @@ export const createUser = mutation({
       consentVoiceAgent: false,
     });
 
-    // Audit log
     await ctx.db.insert("auditLogs", {
       action: "auth:register",
     });
@@ -273,7 +273,8 @@ export const createEnterpriseContract = mutation({
 export const seedDemoData = mutation({
   args: {},
   handler: async (ctx) => {
-    const passwordHash = await bcrypt.hash("demo1234", 12);
+    // Use sync hash — bcryptjs.hash uses setTimeout which isn't allowed in Convex mutations
+    const passwordHash = bcrypt.hashSync("demo1234", 12);
 
     // Check if already seeded
     const existingMember = await ctx.db
