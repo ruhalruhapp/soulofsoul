@@ -10,8 +10,6 @@ generator client {
 }
 
 datasource db {
-  // SQLite for development; Postgres for production.
-  // Set DATABASE_URL="postgresql://user:pass@host:5432/soulofsoul" in production.
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
