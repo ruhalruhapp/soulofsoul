@@ -1,56 +1,54 @@
 /**
  * z-ai-web-dev-sdk initialization for soulofsoul.
  *
- * On Render/production: reads config from environment variables.
- * Locally: falls back to the .z-ai-config file (auto-loaded by the SDK).
+ * The SDK looks for .z-ai-config in:
+ *   1. process.cwd() — the app directory
+ *   2. os.homedir() — the user's home directory
+ *   3. /etc/.z-ai-config — system-wide
+ *
+ * On Render, the filesystem is mostly read-only, but /tmp and the home
+ * directory are typically writable. We write to all three to maximize the
+ * chance the SDK finds it.
  *
  * Required env vars on Render:
- *   ZAI_API_KEY    — the API key
- *   ZAI_BASE_URL   — the API base URL
- *   ZAI_CHAT_ID    — the chat ID (optional)
- *   ZAI_TOKEN      — the JWT token (optional)
- *   ZAI_USER_ID    — the user ID (optional)
+ *   ZAI_API_KEY, ZAI_BASE_URL, ZAI_CHAT_ID, ZAI_TOKEN, ZAI_USER_ID
  */
 
 import ZAI from "z-ai-web-dev-sdk";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
 
 export async function getZAI() {
   if (zaiInstance) return zaiInstance;
 
-  // Check if env vars are set (Render/production)
   const envApiKey = process.env.ZAI_API_KEY;
   const envBaseUrl = process.env.ZAI_BASE_URL;
 
   if (envApiKey && envBaseUrl) {
-    // Write a config file that the SDK can read.
-    // Use /tmp on Render (read-only filesystem elsewhere)
-    const config = {
+    const config = JSON.stringify({
       apiKey: envApiKey,
       baseUrl: envBaseUrl,
       chatId: process.env.ZAI_CHAT_ID || "",
       token: process.env.ZAI_TOKEN || "",
       userId: process.env.ZAI_USER_ID || "",
-    };
+    });
 
-    // Try multiple writable locations
-    const possiblePaths = [
-      "/tmp/.z-ai-config",
+    // Write to all locations the SDK checks
+    const configPaths = [
       path.join(process.cwd(), ".z-ai-config"),
-      path.join(require("os").tmpdir(), ".z-ai-config"),
+      path.join(os.homedir(), ".z-ai-config"),
+      "/etc/.z-ai-config",
+      "/tmp/.z-ai-config",
     ];
 
-    for (const configPath of possiblePaths) {
+    for (const configPath of configPaths) {
       try {
-        fs.writeFileSync(configPath, JSON.stringify(config));
-        // Also set as env var that the SDK might check
-        process.env.ZAI_CONFIG_PATH = configPath;
-        break;
+        fs.writeFileSync(configPath, config);
       } catch {
-        // Try next path
+        // Skip if not writable
       }
     }
   }
