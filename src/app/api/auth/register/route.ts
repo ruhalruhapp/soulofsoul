@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { db } from "@/lib/db";
+import { convex, api } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
+    // §5.6: 18+ hard gate
     if (!birthYear || birthYear < 1900 || birthYear > new Date().getFullYear()) {
       return NextResponse.json({ error: "Valid birth year required" }, { status: 400 });
     }
@@ -37,43 +38,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await db.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
-    }
-
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const user = await db.user.create({
-      data: {
-        email,
-        name: body.name,
-        passwordHash,
-        role: "MEMBER",
-        ageVerified: true,
-        birthYear,
-        tier: 1,
-        member: {
-          create: {
-            language: "en",
-          },
-        },
-      },
-      select: { id: true, email: true, role: true },
+    // Call Convex mutation
+    const result = await convex.mutation(api.mutations.createUser, {
+      email,
+      passwordHash,
+      name: body.name,
+      role: "MEMBER",
+      ageVerified: true,
+      birthYear,
+      tier: 1,
     });
 
-    await db.auditLog.create({
-      data: {
-        userId: user.id,
-        action: "auth:register",
-        ipAddress: req.headers.get("x-forwarded-for") ?? undefined,
-      },
-    });
-
-    return NextResponse.json({ id: user.id, email: user.email, role: user.role });
+    return NextResponse.json(result);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[/api/auth/register] error:", msg);
+    if (msg.includes("already registered")) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
     return NextResponse.json({ error: "Registration failed" }, { status: 500 });
   }
 }

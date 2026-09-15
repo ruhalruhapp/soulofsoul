@@ -1,20 +1,13 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { db } from "@/lib/db";
+import { convex, api } from "@/lib/db";
 
 /**
  * NextAuth.js configuration — soulofsoul platform.
  *
- * Role-based access control (RBAC):
- *   MEMBER      → Tier 1-3 user (self-guided wellness, peer, AI companion)
- *   CLINICIAN   → Tier 4 provider (telehealth, Smart Notes, Smart Insights)
- *   SUPERVISOR  → Persona D — crisis queue triage, disposition authority
- *   ADMIN       → Enterprise contracts, aggregate reporting, SLA monitoring
- *   RESEARCHER  → Pillar 2 IRB-supervised aggregate review (no individual data)
- *
- * Per §5.6: age verification (18+) is a hard product gate.
- * Per §8.3: consent state is layered (4 separate streams) and tracked per User.
+ * Uses Convex as the user store (replaces Prisma).
+ * Role-based access control (RBAC): MEMBER, CLINICIAN, SUPERVISOR, ADMIN, RESEARCHER.
  */
 
 export const authOptions: NextAuthOptions = {
@@ -30,8 +23,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+        // Query Convex for the user
+        const user = await convex.query(api.queries.getUserByEmail, {
+          email: credentials.email.toLowerCase(),
         });
 
         if (!user || !user.passwordHash) {
@@ -43,13 +37,12 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Soft-deleted accounts cannot log in (§9 retention)
         if (user.deletedAt) {
           return null;
         }
 
         return {
-          id: user.id,
+          id: user._id,
           email: user.email,
           name: user.name ?? undefined,
           role: user.role,
@@ -59,7 +52,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -84,7 +77,6 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET ?? "dev-secret-change-in-production",
 };
 
-// Role-checking helpers for use in API routes and server components
 export type Role = "MEMBER" | "CLINICIAN" | "SUPERVISOR" | "ADMIN" | "RESEARCHER";
 
 export function hasRole(session: { user?: { role?: string } } | null, ...roles: Role[]): boolean {
