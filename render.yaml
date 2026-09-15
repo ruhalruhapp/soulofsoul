@@ -1,5 +1,6 @@
 # Render Blueprint for soulofsoul
 # Uses Convex DB — no PostgreSQL service needed.
+# Click this link to deploy: https://dashboard.render.com/deploy?repo=https://github.com/ruhalruhapp/soulofsoul
 
 services:
   - type: web
@@ -12,7 +13,7 @@ services:
     autoDeploy: true
     envVars:
       - key: CONVEX_URL
-        sync: false  # set via Render dashboard or API
+        value: https://cautious-ostrich-558.eu-west-1.convex.cloud
       - key: NEXTAUTH_SECRET
         generateValue: true
       - key: NEXTAUTH_URL
